@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone *)",
+      "Bash(npm --version)",
+      "Bash(npx --yes create-expo-app@latest giellakbd-expo --template blank-typescript --no-install)",
+      "Bash(mkdir -p giellakbd-expo/src/keyboard/layouts)",
+      "Bash(cp giellakbd-source/Keyboard/Models/KeyboardDefinitions.json giellakbd-expo/src/keyboard/layouts/se.json)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx expo *)"
+    ]
+  }
+}

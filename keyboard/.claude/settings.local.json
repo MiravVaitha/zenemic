@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm *)",
+      "PowerShell(npx --yes create-expo-app@latest zenemic-app --template blank)",
+      "WebFetch(domain:docs.expo.dev)",
+      "PowerShell(npx expo export --platform web --output-dir .expo-check 2>&1 | Select-Object -Last 60)",
+      "PowerShell(npx --yes expo install react-dom react-native-web @expo/metro-runtime)",
+      "PowerShell(npx expo export --platform web --output-dir .expo-check 2>&1 | Select-Object -Last 80)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(npx --yes expo install --fix 2>&1 | Select-Object -Last 40)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(mkdir -p /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/.claude /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/sample_keyboards/.claude /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/src)",
+      "Bash(cp /c/Users/shaur/Documents/event_integration/design_handoff_zenemic_keyboard/.claude/settings.local.json /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/.claude/)",
+      "Bash(cp /c/Users/shaur/Documents/event_integration/design_handoff_zenemic_keyboard/.gitignore /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/)",
+      "Bash(cp /c/Users/shaur/Documents/event_integration/design_handoff_zenemic_keyboard/README.md /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/)",
+      "Bash(cp /c/Users/shaur/Documents/event_integration/design_handoff_zenemic_keyboard/index.html /c/Users/shaur/AppData/Local/Temp/zenemic-push-818/keyboard/)"
+    ]
+  }
+}

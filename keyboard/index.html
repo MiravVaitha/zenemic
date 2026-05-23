@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!--
+  Minimal harness for previewing the Zenemic keyboard in a browser.
+  In a real app you would mount <ZenemicController /> inside whatever
+  text-entry surface your app needs (a message composer, a note, etc.).
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zenemic Keyboard</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0a0b; font-family: -apple-system, system-ui, sans-serif; color: #fff; }
+  button { font-family: inherit; }
+
+  @keyframes zen-blink { 0%,49% { opacity: 1 } 50%,100% { opacity: 0 } }
+  @keyframes zen-wave  { 0%, 100% { height: 4px } 50% { height: 18px } }
+  @keyframes zen-expand {
+    from { opacity: 0; transform: translateY(8px); max-height: 0; }
+    to   { opacity: 1; transform: translateY(0);  max-height: 240px; }
+  }
+  @keyframes zen-fadein { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes zen-slideup {
+    from { transform: translateY(40px); opacity: 0 }
+    to   { transform: translateY(0);    opacity: 1 }
+  }
+  @keyframes zen-slidein {
+    from { transform: translateX(100%); opacity: 0 }
+    to   { transform: translateX(0);    opacity: 1 }
+  }
+  @keyframes zen-spin  { to { transform: rotate(360deg) } }
+  @keyframes zen-pulse {
+    0%, 100% { transform: scale(1);   opacity: 1 }
+    50%      { transform: scale(1.6); opacity: 0.3 }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="src/keyboard.jsx"></script>
+<script type="text/babel" src="src/result.jsx"></script>
+<script type="text/babel" src="src/app.jsx"></script>
+
+<script type="text/babel">
+  // Minimal host: a single text field that receives the keyboard's input.
+  function Host() {
+    const [compose, setCompose] = React.useState('');
+    return (
+      <div style={{
+        width: 390, height: 844, margin: '32px auto',
+        background: '#0c0c0d', position: 'relative',
+        display: 'flex', flexDirection: 'column',
+        borderRadius: 16, overflow: 'hidden',
+        boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+      }}>
+        <div style={{ flex: 1, padding: 16, color: '#fff' }}>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Compose field</div>
+          <div style={{
+            background: '#18181a', borderRadius: 12, padding: 12,
+            minHeight: 80, fontSize: 15, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          }}>
+            {compose || <span style={{ color: '#666' }}>Tap keys to type, or tap the Zenemic logo to start an event prompt</span>}
+          </div>
+        </div>
+        <ZenemicController composeText={compose} onComposeChange={setCompose} />
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Host />);
+</script>
+</body>
+</html>
