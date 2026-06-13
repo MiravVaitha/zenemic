@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { FONTS, RADIUS, useTheme } from '../theme';
 import { ZenChrome } from '../components/ZenChrome';
 import { Section } from '../components/Section';
@@ -21,6 +21,22 @@ const ROWS: Row[] = [
 
 export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
   const t = useTheme();
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your account and all of your events. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () =>
+            navigation.reset({ index: 0, routes: [{ name: 'SignUp' }] }),
+        },
+      ],
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -93,6 +109,8 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
               navigation.reset({ index: 0, routes: [{ name: 'SignUp' }] })
             }
           />
+
+          <ZenButton label="Delete account" variant="danger" onPress={confirmDeleteAccount} />
         </Section>
       </ScrollView>
     </View>

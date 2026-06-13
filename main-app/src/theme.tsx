@@ -28,6 +28,7 @@ const DARK = {
 
 export const ACCENT = '#FF6B4A';
 export const GREEN = '#7CFF6B';
+export const DANGER = '#E5484D';
 
 export const FONTS = {
   sansLight: 'Inter_300Light',
@@ -51,6 +52,7 @@ export type Theme = typeof LIGHT & {
   mode: ThemeMode;
   accent: string;
   green: string;
+  danger: string;
   setMode: (m: ThemeMode) => void;
 };
 
@@ -60,7 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('light');
   const value = useMemo<Theme>(() => {
     const palette = mode === 'dark' ? DARK : LIGHT;
-    return { ...palette, mode, accent: ACCENT, green: GREEN, setMode };
+    return { ...palette, mode, accent: ACCENT, green: GREEN, danger: DANGER, setMode };
   }, [mode]);
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }

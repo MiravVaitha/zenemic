@@ -4,7 +4,7 @@ import { FONTS, RADIUS, useTheme } from '../theme';
 import { ZenText } from './ZenText';
 import { IconArrow } from '../icons';
 
-type Variant = 'primary' | 'accent' | 'ghost' | 'disabled' | 'link';
+type Variant = 'primary' | 'accent' | 'ghost' | 'danger' | 'disabled' | 'link';
 
 export interface ZenButtonProps {
   label: string;
@@ -39,6 +39,7 @@ export function ZenButton({
     primary: { bg: t.fg, color: t.bg },
     accent: { bg: t.accent, color: '#0a0a0a' },
     ghost: { bg: 'transparent', color: t.fg, border: t.hairline },
+    danger: { bg: 'transparent', color: t.danger, border: t.danger },
     disabled: { bg: t.fg3Bg, color: t.fg3 },
   };
   const p = palette[variant];
