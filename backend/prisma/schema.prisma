@@ -1,0 +1,271 @@
+// Zenemic data model.
+// Run `npm run prisma:generate` after editing, then `npm run prisma:migrate`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Runtime queries go through Supabase's pooler (PgBouncer / Supavisor).
+  url       = env("DATABASE_URL")
+  // Migrations + introspection need a direct (non-pooled) connection.
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────── Users / auth ───────────────────────────────
+
+// App profile for a Supabase Auth user. `id` IS the Supabase auth user UUID
+// (auth.users.id) — we don't store passwords or sessions; Supabase owns those.
+model User {
+  id        String   @id // = Supabase auth.users.id (UUID)
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Preferences (mirrors the app's Settings screen).
+  defaultSplitMode     SplitMode @default(EVEN)
+  notificationsEnabled Boolean   @default(true)
+  expoPushToken        String?
+
+  // Google Calendar OAuth — refresh token so we can act on the user's calendar.
+  googleRefreshToken String?
+  googleCalendarId   String? // defaults to "primary" once connected
+
+  events Event[]
+}
+
+// ─────────────────────────────────── Events ─────────────────────────────────
+
+model Event {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title         String
+  // Human-readable date/time as shown in the UI ("07 Jun 2026", "7:30 PM").
+  dateLabel     String
+  timeLabel     String
+  // Machine timestamps when we can resolve them (drive reminders + calendar).
+  startsAt      DateTime?
+  endsAt        DateTime?
+  kind          EventKind @default(PLANNED)
+  status        EventStatus @default(DRAFT)
+
+  location      String
+  locationLat   Float?
+  locationLng   Float?
+  placeId       String? // Google Maps place_id
+
+  attendeesCount Int      @default(1)
+  budgetMinor    Int?     // total budget in minor units (pence/cents)
+  currency       String   @default("gbp")
+  splitMode      SplitMode @default(EVEN)
+
+  // The original free-text the user/keyboard typed; what the AI extracted from.
+  sourceMessage String?
+
+  // Generated resource references.
+  calendarEventId String?
+  calendarHtmlLink String?
+  mapsUrl         String?
+  tflUrl          String?
+  albumUrl        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stages       Stage[]
+  attendees    Attendee[]
+  split        Split?
+  receipts     Receipt[]
+  chatMessages ChatMessage[]
+  photos       AlbumPhoto[]
+
+  @@index([userId, kind])
+}
+
+// One photo in an event's shared album (stored in object storage, tracked here).
+model AlbumPhoto {
+  id           String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url          String
+  caption      String?
+  uploaderName String?
+  createdAt    DateTime @default(now())
+
+  @@index([eventId])
+}
+
+// One row per planner-chart stage (the EventDetail / PlannerChart timeline).
+model Stage {
+  id      String    @id @default(cuid())
+  eventId String
+  event   Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  order   Int
+  tag     StageTag
+  t       String  // time label, e.g. "T -2H", "SAT · 9AM"
+  heading String
+  body    String
+  kind    StageKind @default(NEXT)
+  done    Boolean   @default(false) // host ticks stages off on the day
+
+  @@index([eventId])
+}
+
+model Attendee {
+  id      String  @id @default(cuid())
+  eventId String
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name   String
+  email  String?
+  phone  String?
+  rsvp   RsvpStatus @default(PENDING)
+  isHost Boolean    @default(false)
+
+  shares SplitShare[]
+
+  @@index([eventId])
+}
+
+// ───────────────────────────── Payments / splitter ──────────────────────────
+
+model Split {
+  id        String    @id @default(cuid())
+  eventId   String    @unique
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  mode       SplitMode @default(EVEN)
+  totalMinor Int       @default(0)
+  currency   String    @default("gbp")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  shares SplitShare[]
+}
+
+model SplitShare {
+  id         String   @id @default(cuid())
+  splitId    String
+  split      Split    @relation(fields: [splitId], references: [id], onDelete: Cascade)
+  attendeeId String?
+  attendee   Attendee? @relation(fields: [attendeeId], references: [id], onDelete: SetNull)
+
+  amountMinor Int
+  status      PaymentStatus @default(PENDING)
+
+  // Stripe references for the request sent to this person.
+  stripePaymentLinkId  String?
+  stripePaymentLinkUrl String?
+  stripePaymentIntentId String?
+  paidAt               DateTime?
+
+  @@index([splitId])
+}
+
+// ─────────────────────────────────── Receipts ───────────────────────────────
+
+model Receipt {
+  id      String  @id @default(cuid())
+  eventId String
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  label      String
+  totalMinor Int
+  currency   String  @default("gbp")
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+
+  items        ReceiptItem[]
+  chatMessages ChatMessage[]
+
+  @@index([eventId])
+}
+
+model ReceiptItem {
+  id        String  @id @default(cuid())
+  receiptId String
+  receipt   Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  qty       Int    @default(1)
+  name      String
+  priceMinor Int   // unit price in minor units
+
+  @@index([receiptId])
+}
+
+// ───────────────────────────── Ask Zenemic chat ─────────────────────────────
+
+model ChatMessage {
+  id      String  @id @default(cuid())
+  eventId String
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  role      ChatRole
+  content   String
+  // Optional receipt attachment surfaced in the conversation.
+  receiptId String?
+  receipt   Receipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+}
+
+// ──────────────────────────────────── Enums ─────────────────────────────────
+
+enum EventKind {
+  PLANNED
+  ONGOING
+  PREVIOUS
+}
+
+enum EventStatus {
+  DRAFT      // extracted, not yet committed
+  ACTIVE     // resources generated + persisted
+  ARCHIVED
+}
+
+enum StageKind {
+  PAST
+  CURRENT
+  NEXT
+}
+
+enum StageTag {
+  SETUP
+  PRE
+  TRAVEL
+  LIVE
+  KEY
+  WRAP
+}
+
+enum SplitMode {
+  EVEN
+  BY_SHARE
+  BY_ITEM
+}
+
+enum RsvpStatus {
+  PENDING
+  GOING
+  DECLINED
+}
+
+enum PaymentStatus {
+  PENDING
+  REQUESTED
+  PAID
+  FAILED
+  CANCELED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
