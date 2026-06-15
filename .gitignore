@@ -1,6 +1,12 @@
 .design-pkg/
 .DS_Store
 
+# Single repo-root env file (secrets) — never commit. The example IS tracked.
+.env
+.env.local
+.env*.local
+!.env.example
+
 # Dependencies for any sub-project — installed locally, never committed.
 node_modules/
 

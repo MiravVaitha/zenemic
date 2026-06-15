@@ -3,13 +3,13 @@ import path from 'node:path';
 import { z } from 'zod';
 
 /**
- * Both backend services share ONE env file at the monorepo root (backend/), so
- * there's a single source of secrets/config no matter which service we boot.
- * Resolve it relative to this file (works from src in dev and dist in build).
- * `.env.local` wins over `.env`; anything already in process.env (e.g. a
- * platform-injected PORT) wins over both.
+ * The WHOLE repo shares ONE env file at the repository root, so the backend
+ * services and the Expo app (via main-app/app.config.js) read the same
+ * secrets/config. Resolve it relative to this file (works from src in dev and
+ * dist in build). `.env.local` wins over `.env`; anything already in process.env
+ * (e.g. a platform-injected PORT) wins over both.
  */
-const ENV_ROOT = path.resolve(__dirname, '../../../..'); // packages/shared/{src,dist}/config -> backend/
+const ENV_ROOT = path.resolve(__dirname, '../../../../..'); // packages/shared/{src,dist}/config -> repo root
 loadEnv({ path: path.join(ENV_ROOT, '.env.local') });
 loadEnv({ path: path.join(ENV_ROOT, '.env') });
 

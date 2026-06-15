@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Zenemic** is an AI event-planning app: describe an event in natural language and it extracts the
 details, builds a planner timeline, and wires up Google Calendar, a Stripe payment split, and
-Maps/TfL links. The repo holds three separately-developed parts (frontends are **not yet wired** to
-the backend — that's deliberate, see below):
+Maps/TfL links. The repo holds three parts (the Expo app is now **wired to the backend**; the
+keyboard prototype is not yet):
 
 - **`main-app/`** — the shipping **Expo / React Native** iOS app (the product UI).
 - **`backend/`** — an **npm-workspaces monorepo** with two runnable services + a shared library.
@@ -86,13 +86,16 @@ because one calls the other.
 - **Feature flags.** Optional integrations are gated by env keys; missing keys make endpoints return
   `503 not_configured` instead of crashing (`config/env.ts` `features`, surfaced at `/health`).
 
-### Env & config (single shared file)
-Both services load **one** env file at the monorepo root — `backend/.env.local` (falling back to
-`backend/.env`) — resolved relative to `packages/shared/src/config/env.ts` via `__dirname`, so it
-works regardless of which service's cwd you start from. Copy `backend/.env.example`. Required to boot
-either service: `DATABASE_URL` (+ `DIRECT_URL`), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-`APP_SECRET`, `ANTHROPIC_API_KEY`. Ports are **`MAIN_APP_PORT`** (4000) and **`KEYBOARD_PORT`** (4100)
-— two distinct vars in the one file so they never collide. Do **not** reintroduce a bare `PORT`.
+### Env & config (single repo-root file)
+The **whole repo** shares ONE env file at the repository root — `.env.local` (falling back to `.env`).
+The backend reads it via `packages/shared/src/config/env.ts` (resolved relative to that file's
+`__dirname` → repo root, so it works from any cwd); the Expo app reads it via `main-app/app.config.js`
+(loads it with `dotenv` and exposes only the `EXPO_PUBLIC_*` values through `Constants.expoConfig.extra`
+— backend secrets are NOT bundled into the app). Copy `.env.example` → `.env.local`. Backend needs
+`DATABASE_URL` (+ `DIRECT_URL`), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_SECRET`,
+`ANTHROPIC_API_KEY`; the app needs `EXPO_PUBLIC_API_URL` (your PC's LAN IP for a physical phone),
+`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Ports are **`MAIN_APP_PORT`** (4000) and
+**`KEYBOARD_PORT`** (4100) — distinct vars so they never collide; don't reintroduce a bare `PORT`.
 
 ### TypeScript build setup
 Workspace TS uses `tsconfig.base.json` (`module`/`moduleResolution`: **NodeNext**). Each service has
@@ -107,12 +110,16 @@ be built before the services** — `npm run build` enforces that order.
   still says SDK 51 / RN 0.74 — stale; trust `package.json`.)
 - Entry `App.tsx` → `SafeAreaProvider` → `ThemeProvider` (`src/theme.tsx`) → `AppNavigator`
   (`src/navigation/`, React Navigation native stack). Screens in `src/screens/`, reusable UI in
-  `src/components/`, **mock** data in `src/data/`, icons via `react-native-svg` (`src/icons.tsx`).
+  `src/components/`, the API layer in `src/lib/` (`api.ts`, `supabase.ts`, `auth.tsx`, `config.ts`),
+  shared types in `src/data/` + `src/types/`, icons via `react-native-svg` (`src/icons.tsx`).
 - Design system tokens (coral `#FF6B4A`, light-default + dark, Inter + JetBrains Mono) all live in
   `src/theme.tsx`. Flow: `Splash → SignUp/Login → Keyboard → Events → EventDetail → PlannerChart`
   plus the create flow `CreateDescribe → CreateConfirm → CreateProcessing → CreateSuccess`.
-- The app currently runs on **mock data**; `EventChatPanel` uses a `mockComplete` stub. It is not yet
-  pointed at the backend.
+- The app is **wired to the main-app backend**: Supabase auth (`src/lib/auth.tsx`) gates the navigator
+  (logged-out vs logged-in stacks); a typed API client (`src/lib/api.ts`) attaches the Supabase Bearer
+  token and parses the backend error envelope; config comes from the repo-root env via `app.config.js`
+  → `Constants.expoConfig.extra` (`src/config.ts`). Screens fetch real data (events, AI create, planner
+  chart, chat, splitter, settings); optional integrations degrade gracefully on `503 not_configured`.
 
 ## The keyboard prototype (`keyboard/`)
 HTML/JSX reference (preview via `index.html`): `src/keyboard.jsx` (keys + suggestion bar + prompt

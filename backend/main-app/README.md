@@ -45,12 +45,12 @@ Or from this folder: `npm run dev`. Build/start: `npm run build` then `npm start
 
 ## Environment
 
-Environment is the **one shared file at the monorepo root** — `backend/.env.local` (copy
-from `backend/.env.example`). Your previous `.env.local` was moved there. Required to boot:
+Environment is the **one file for the whole repo** at the repository root — `.env.local` (copy
+from `.env.example`), shared with the keyboard service and the Expo app. Required to boot:
 `DATABASE_URL` (+ `DIRECT_URL`), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_SECRET`,
 `ANTHROPIC_API_KEY`; this service listens on `MAIN_APP_PORT` (default 4000). Every other
 integration is optional — leave its keys blank and the related endpoints return a clear
-`503 not_configured` instead of crashing. See `backend/.env.example` for the full list.
+`503 not_configured` instead of crashing. See the repo-root `.env.example` for the full list.
 
 ## API reference (all under `/api`)
 

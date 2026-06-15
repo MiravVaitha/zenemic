@@ -38,7 +38,6 @@ shared infrastructure and domain logic lives in `@zenemic/shared` and is importe
 
 ```sh
 cd backend
-cp .env.example .env.local  # ONE shared env file for both services — then fill it in
 npm install                 # installs all workspaces + links @zenemic/shared
 npm run prisma:generate     # generate the shared Prisma client
 npm run prisma:migrate      # create tables from packages/shared/prisma/schema.prisma
@@ -49,12 +48,12 @@ npm run dev:main            # main-app  → http://localhost:4000
 npm run dev:keyboard        # keyboard  → http://localhost:4100
 ```
 
-Both services share **one** env file at the monorepo root: copy `backend/.env.example` →
-`backend/.env.local` (or `.env`) and fill it in once — both services load it regardless of
-which one you start. Required to boot either service: `DATABASE_URL` (+ `DIRECT_URL`),
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_SECRET`, `ANTHROPIC_API_KEY`. The two
-services listen on `MAIN_APP_PORT` (4000) and `KEYBOARD_PORT` (4100) from that same file, so
-there's no clash. See `backend/.env.example` for the full annotated list.
+Env is **one file for the whole repo** at the repository root (not under `backend/`): copy
+`../.env.example` → `../.env.local` and fill it in once — both backend services **and** the Expo
+app read it. Required to boot either service: `DATABASE_URL` (+ `DIRECT_URL`), `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `APP_SECRET`, `ANTHROPIC_API_KEY`. The two services listen on
+`MAIN_APP_PORT` (4000) and `KEYBOARD_PORT` (4100) from that same file, so there's no clash. See
+`../.env.example` for the full annotated list (including the `EXPO_PUBLIC_*` keys the app uses).
 
 ## Root scripts
 

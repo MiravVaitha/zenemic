@@ -41,10 +41,10 @@ Or from this folder: `npm run dev`. Build/start: `npm run build` then `npm start
 
 ## Environment
 
-Environment is the **one shared file at the monorepo root** — `backend/.env.local` (copy
-from `backend/.env.example`); the same file the main-app uses, so it already points at the
-same database. Required to boot: `DATABASE_URL` (+ `DIRECT_URL`), `SUPABASE_URL`,
+Environment is the **one file for the whole repo** at the repository root — `.env.local` (copy
+from `.env.example`); the same file the main-app service and the Expo app use, so it already
+points at the same database. Required to boot: `DATABASE_URL` (+ `DIRECT_URL`), `SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `APP_SECRET`, `ANTHROPIC_API_KEY`. Optional integration keys
 (Google Calendar/Maps, Stripe, TfL) enable the matching resource on generated events; leave
-them blank to skip it. This service listens on `KEYBOARD_PORT` (default 4100). See
-`backend/.env.example` for the annotated list.
+them blank to skip it. This service listens on `KEYBOARD_PORT` (default 4100). See the repo-root
+`.env.example` for the annotated list.

@@ -9,8 +9,8 @@ import { config as loadEnv } from 'dotenv';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
 
-// Load the one shared env file at the monorepo root (backend/), same as the services.
-const ENV_ROOT = path.resolve(__dirname, '../../..'); // packages/shared/prisma -> backend/
+// Load the one shared env file at the repository root, same as the services.
+const ENV_ROOT = path.resolve(__dirname, '../../../..'); // packages/shared/prisma -> repo root
 loadEnv({ path: path.join(ENV_ROOT, '.env.local') });
 loadEnv({ path: path.join(ENV_ROOT, '.env') });
 import { createClient } from '@supabase/supabase-js';
