@@ -60,7 +60,7 @@ Zenemic is cross-platform, with a **public beta arriving soon on iOS and Android
 
 Zenemic is powered by **Anthropic's Claude** models, with a React Native (Expo) app and a
 TypeScript backend. It integrates with services people already use — Google Calendar, Google Maps,
-Stripe, and Transport for London — so plans flow into the tools you rely on.
+Stripe, Google Photos — so plans flow into the tools you rely on.
 
 ## Project status
 
