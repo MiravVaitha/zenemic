@@ -61,7 +61,11 @@ export function ZenButton({
           justifyContent: 'center',
           gap: 8,
           opacity: pressed && variant !== 'disabled' ? 0.85 : 1,
-          transform: pressed && variant !== 'disabled' ? [{ scale: 0.985 }] : undefined,
+          // Always keep `transform` a valid array. Toggling it to `undefined` on
+          // release removes the prop, which Fabric passes to the dev validator as
+          // `null` → "Cannot read property 'forEach' of null". Identity scale (1)
+          // has no visual effect.
+          transform: [{ scale: pressed && variant !== 'disabled' ? 0.985 : 1 }],
         },
         style,
       ]}
