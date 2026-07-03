@@ -12,7 +12,7 @@ For architecture see [`CLAUDE.md`](./CLAUDE.md); for env vars see [`.env.example
 
 ## TL;DR — every session
 
-Open three terminals from the repo root (`C:\Users\mirav\zenemic`):
+Open three terminals from the repo root (`C:\Users\(name)\zenemic`):
 
 | Terminal | Command | Needed for |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ Then press **`w`** (web) or **scan the QR** in Expo Go on your iPhone. `Ctrl+C` 
 ### 1. Backend API — Terminal 1
 
 ```sh
-cd C:\Users\mirav\zenemic\backend
+cd zenemic\backend
 npm run dev:main
 ```
 
@@ -70,7 +70,7 @@ Leave it running while testing payments. It prints `Your webhook signing secret 
 ### 3. Expo app — Terminal 3
 
 ```sh
-cd C:\Users\mirav\zenemic\main-app
+cd zenemic\main-app
 npm start
 ```
 
@@ -143,22 +143,22 @@ Creates a Supabase auth user `eve@email.com` / `password123`, a profile, and one
 (The seed script loads `.env.local` itself, so no `--env-file` needed.) Requires the schema to be applied first.
 
 ```sh
-cd C:\Users\mirav\zenemic\backend
+cd zenemic\backend
 npm run seed
 ```
 
 ### Typecheck (the gate — there is no test suite)
 
 ```sh
-cd C:\Users\mirav\zenemic\backend ; npm run typecheck
-cd C:\Users\mirav\zenemic\main-app ; npm run typecheck
+cd zenemic\backend ; npm run typecheck
+cd zenemic\main-app ; npm run typecheck
 ```
 
 ### Install / regenerate after pulling changes
 
 ```sh
-cd C:\Users\mirav\zenemic\backend ; npm install ; npm run prisma:generate
-cd C:\Users\mirav\zenemic\main-app ; npm install
+cd zenemic\backend ; npm install ; npm run prisma:generate
+cd zenemic\main-app ; npm install
 ```
 
 ---
