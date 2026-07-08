@@ -1,9 +1,8 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useTheme } from '../theme';
 import { ZenText } from '../components/ZenText';
 import { Spinner } from '../components/Spinner';
-import { IconLogo } from '../icons';
 
 // Shown only while the auth session is being restored. AppNavigator swaps to the
 // auth or app stack automatically once loading completes — no navigation here.
@@ -13,19 +12,11 @@ export function SplashScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 }}>
-        <View
-          style={{
-            width: 56,
-            height: 56,
-            borderWidth: 0.5,
-            borderColor: t.hairline,
-            borderRadius: 14,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <IconLogo color={t.fg} />
-        </View>
+        <Image
+          source={require('../../assets/zenemic-orb.png')}
+          style={{ width: 88, height: 88 }}
+          resizeMode="contain"
+        />
         <ZenText variant="wordmarkBig" tone="fg">ZENEMIC</ZenText>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingBottom: 48 }}>
