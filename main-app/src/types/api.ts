@@ -4,18 +4,34 @@ import type { Stage } from '../data/chart';
 export type SplitMode = 'EVEN' | 'BY_SHARE' | 'BY_ITEM';
 export type Rsvp = 'PENDING' | 'GOING' | 'DECLINED';
 
+/** One stop of an event, in `order`. The first is the primary (= `location`). */
+export interface EventLocation {
+  id: string;
+  order: number;
+  name: string;
+  label: string | null;
+  query: string;
+  coordinates: { lat: number; lng: number } | null;
+  mapsUrl: string | null;
+}
+
 /** Serialized event from the backend — a superset of the UI's `ZenEvent`. */
 export interface ApiEvent extends ZenEvent {
   startsAt: string | null;
   endsAt: string | null;
   status: string;
   coordinates: { lat: number; lng: number } | null;
+  locations: EventLocation[];
   budgetMinor: number | null;
   currency: string;
   splitMode: SplitMode;
   resources: {
     calendar: { eventId: string; htmlLink: string } | null;
     mapsUrl: string | null;
+    /** Whole-journey route through every stop (null for a single stop). */
+    routeUrl: string | null;
+    /** Signed path to the static-map proxy (prefix with the API base), or null. */
+    mapImageUrl: string | null;
     albumUrl: string | null;
   };
   createdAt: string;
@@ -99,8 +115,7 @@ export interface ExtractedDraft {
   timeLabel: string;
   startsAtISO: string | null;
   endsAtISO: string | null;
-  locationName: string;
-  locationQuery: string;
+  locations: { name: string; query: string; label: string | null }[];
   attendees: number;
   guests: string[];
   budgetMajor: number | null;
@@ -115,7 +130,7 @@ export interface CreateEventInput {
   timeLabel: string;
   startsAtISO?: string | null;
   endsAtISO?: string | null;
-  locationName: string;
+  locations: { name: string; query?: string; label?: string | null }[];
   attendees: number;
   guests?: string[];
   budget?: string | number | null;

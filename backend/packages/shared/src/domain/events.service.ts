@@ -5,9 +5,8 @@ import { parseBudgetToMinor } from '../lib/money';
 import { extractEvent, generateChart, type ExtractedEvent } from '../ai';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
-import * as maps from '../integrations/googleMaps';
 import * as calendar from '../integrations/googleCalendar';
-import { generateResources, type ResourceReport } from './resources.service';
+import { generateResources, linkLocations, type ResourceReport } from './resources.service';
 import { createOrUpdateSplit } from './splitter.service';
 import {
   serializeEvent,
@@ -27,7 +26,15 @@ const detailInclude = {
   attendees: { orderBy: { id: 'asc' } },
   split: { include: { shares: { include: { attendee: true } } } },
   receipts: { include: { items: true }, orderBy: { createdAt: 'desc' } },
+  locations: { orderBy: { order: 'asc' } },
 } satisfies Prisma.EventInclude;
+
+/** A single stop as accepted from the create/edit flows (query defaults to name). */
+export interface LocationInput {
+  name: string;
+  query?: string;
+  label?: string | null;
+}
 
 export interface CreateEventInput {
   title: string;
@@ -35,7 +42,7 @@ export interface CreateEventInput {
   timeLabel: string;
   startsAtISO?: string | null;
   endsAtISO?: string | null;
-  locationName: string;
+  locations: LocationInput[];
   attendees: number;
   guests?: string[];
   budget?: string | number | null;
@@ -84,7 +91,15 @@ export async function createEvent(
       endsAt,
       kind: input.kind ?? deriveEventKind(startsAt, endsAt),
       status: 'DRAFT',
-      location: input.locationName,
+      location: input.locations[0]?.name ?? '',
+      locations: {
+        create: input.locations.map((l, i) => ({
+          order: i,
+          name: l.name,
+          query: l.query?.trim() || l.name,
+          label: l.label ?? null,
+        })),
+      },
       attendeesCount: Math.max(input.attendees, guestRows.length + 1),
       budgetMinor,
       currency,
@@ -97,7 +112,10 @@ export async function createEvent(
   });
 
   const resources = await generateResources(event.id);
-  const full = await prisma.event.findUniqueOrThrow({ where: { id: event.id } });
+  const full = await prisma.event.findUniqueOrThrow({
+    where: { id: event.id },
+    include: { locations: { orderBy: { order: 'asc' } } },
+  });
   return { event: serializeEvent(full), resources };
 }
 
@@ -107,6 +125,7 @@ export async function listEvents(userId: string, kind?: EventKind) {
   const events = await prisma.event.findMany({
     where: { userId },
     orderBy: { startsAt: 'desc' },
+    include: { locations: { orderBy: { order: 'asc' } } },
   });
   const serialized = events.map(serializeEvent);
   const wanted = kind?.toLowerCase();
@@ -158,6 +177,7 @@ export async function regenerateChart(userId: string, eventId: string) {
     dateLabel: event.dateLabel,
     timeLabel: event.timeLabel,
     location: event.location,
+    locations: event.locations.map((l) => ({ name: l.name, label: l.label })),
     attendees: event.attendeesCount,
     budgetLabel: null,
     splitMode: event.splitMode,
@@ -230,7 +250,10 @@ export interface UpdateEventInput {
   title?: string;
   dateLabel?: string;
   timeLabel?: string;
+  /** Legacy single-stop edit; superseded by `locations` when both are present. */
   location?: string;
+  /** Full replacement list of stops (EditEvent locations editor). */
+  locations?: LocationInput[];
   splitMode?: 'EVEN' | 'BY_SHARE' | 'BY_ITEM';
   startsAtISO?: string | null;
   endsAtISO?: string | null;
@@ -306,6 +329,27 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
     patch.budget !== undefined ? parseBudgetToMinor(patch.budget, event.currency) : event.budgetMinor;
   const newSplitMode = patch.splitMode ?? event.splitMode;
 
+  // Locations: a `locations` array (or the legacy single `location`) fully
+  // replaces the event's stops. Rows are swapped in the same transaction; the
+  // geocode + link rebuild + primary mirror happen best-effort afterwards.
+  const newLocations =
+    patch.locations ?? (patch.location != null ? [{ name: patch.location }] : undefined);
+  const locationOps: Prisma.PrismaPromise<unknown>[] = [];
+  if (newLocations && newLocations.length) {
+    locationOps.push(prisma.eventLocation.deleteMany({ where: { eventId } }));
+    locationOps.push(
+      prisma.eventLocation.createMany({
+        data: newLocations.map((l, i) => ({
+          eventId,
+          order: i,
+          name: l.name,
+          query: l.query?.trim() || l.name,
+          label: l.label ?? null,
+        })),
+      }),
+    );
+  }
+
   await prisma.$transaction([
     prisma.event.update({
       where: { id: eventId },
@@ -313,7 +357,8 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
         ...(patch.title != null ? { title: patch.title } : {}),
         ...(patch.dateLabel != null ? { dateLabel: patch.dateLabel } : {}),
         ...(patch.timeLabel != null ? { timeLabel: patch.timeLabel } : {}),
-        ...(patch.location != null ? { location: patch.location } : {}),
+        // Mirror the new primary stop; linkLocations refreshes coords/mapsUrl below.
+        ...(newLocations?.length ? { location: newLocations[0]!.name } : {}),
         ...(patch.splitMode != null ? { splitMode: patch.splitMode } : {}),
         ...(patch.startsAtISO !== undefined ? { startsAt: newStartsAt } : {}),
         ...(patch.endsAtISO !== undefined ? { endsAt: newEndsAt } : {}),
@@ -324,25 +369,15 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
       },
     }),
     ...rosterOps,
+    ...locationOps,
   ]);
 
-  // Side-effect 1: location changed → re-geocode + rebuild the maps link.
-  const changedLocation = patch.location != null && patch.location !== event.location;
-  if (changedLocation && patch.location != null) {
+  // Side-effect 1: stops changed → re-geocode all, rebuild each link, refresh
+  // the primary mirror (linkLocations does all three).
+  const changedLocation = Boolean(newLocations?.length);
+  if (changedLocation) {
     try {
-      const locationUpdate: { locationLat?: number; locationLng?: number; placeId?: string; mapsUrl?: string } = {};
-      let placeId: string | null = null;
-      if (maps.googleMapsEnabled) {
-        const geo = await maps.geocode(patch.location);
-        if (geo) {
-          locationUpdate.locationLat = geo.lat;
-          locationUpdate.locationLng = geo.lng;
-          locationUpdate.placeId = geo.placeId;
-          placeId = geo.placeId;
-        }
-      }
-      locationUpdate.mapsUrl = maps.directionsLink({ destination: patch.location, placeId });
-      await prisma.event.update({ where: { id: eventId }, data: locationUpdate });
+      await linkLocations(eventId);
     } catch (err) {
       logger.warn({ err, eventId }, 'location re-linking failed');
     }
@@ -404,7 +439,10 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
     }
   }
 
-  const fresh = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+  const fresh = await prisma.event.findUniqueOrThrow({
+    where: { id: eventId },
+    include: { locations: { orderBy: { order: 'asc' } } },
+  });
   return serializeEvent(fresh);
 }
 

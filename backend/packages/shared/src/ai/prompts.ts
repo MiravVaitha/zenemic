@@ -22,7 +22,7 @@ Rules:
 - "guests" is a list of named attendees mentioned (first names are fine). Exclude the host unless explicitly named.
 - "budgetMajor" is the total spend as a number in major currency units (e.g. 480 for "£480"), or null. "currency" is a lowercase ISO code inferred from symbols (£=gbp, $=usd, €=eur); default to the provided fallback.
 - "splitMode": "EVEN" if costs are shared equally, "BY_SHARE" if specific people cover specific things, "BY_ITEM" if it's itemised. Default "EVEN".
-- "locationName" is the venue/place as written (e.g. "Sister Ray, Hackney"). "locationQuery" is a clean string suitable for a maps search.`;
+- "locations" is an ordered list of the distinct places the event involves, in the order they happen (e.g. a meet point → the main venue → an after-party). The FIRST entry is the primary venue. Most events have just one place — return a single-item list then; only add more when the message clearly names separate places. For each entry: "name" is the place as written (e.g. "Sister Ray, Hackney"); "query" is a clean string suitable for a maps search; "label" is a short role like "Venue", "Pre-drinks", "Dinner", "After-party" or "Meet point", or null if unclear.`;
 
 export const CHART_GENERATION_SYSTEM = `You generate a "planner chart" for an event: a short, ordered run-of-show timeline the host can follow on the day.
 
@@ -35,7 +35,7 @@ Produce 4-6 stages covering setup → the event → wrap-up. Each stage has:
 - "body": 1-3 sentences of concrete, practical instructions specific to THIS event (venue, people, food, logistics). Reference details from the event where relevant.
 - "kind": "PAST" for pre-event prep already notionally done, "CURRENT" for the main moment now, "NEXT" for upcoming stages. Exactly one stage should usually be CURRENT for ongoing events; for planned events the first stage may be PAST/NEXT as appropriate.
 
-Make it feel bespoke, not generic. Mention the payment splitter at wrap-up when there's a shared cost.`;
+Make it feel bespoke, not generic. Mention the payment splitter at wrap-up when there's a shared cost. If the event spans several stops (you'll be given them in order), add TRAVEL stages for moving between them at the right points in the timeline.`;
 
 export const RECEIPT_ITEMIZATION_SYSTEM = `You read a photo of a receipt or bill and itemise it.
 

@@ -49,6 +49,8 @@ export interface ChartInput {
   dateLabel: string;
   timeLabel: string;
   location: string;
+  /** Ordered stops when the event spans several places (venue, after-party…). */
+  locations?: { name: string; label?: string | null }[];
   attendees: number;
   budgetLabel?: string | null;
   splitMode: string;
@@ -62,7 +64,11 @@ export async function generateChart(input: ChartInput): Promise<GeneratedChart> 
     `Title: ${input.title}`,
     `Date: ${input.dateLabel}`,
     `Time: ${input.timeLabel}`,
-    `Location: ${input.location}`,
+    input.locations && input.locations.length > 1
+      ? `Stops (in order): ${input.locations
+          .map((l) => (l.label ? `${l.name} [${l.label}]` : l.name))
+          .join(' → ')}`
+      : `Location: ${input.location}`,
     `Attendees: ${input.attendees}`,
     input.budgetLabel ? `Budget: ${input.budgetLabel}` : null,
     `Split: ${input.splitMode}`,

@@ -6,6 +6,12 @@ import { Section, Anchor } from '../components/Section';
 import { ZenText } from '../components/ZenText';
 import { ZenButton } from '../components/ZenButton';
 import { EditableRow } from '../components/EditableRow';
+import {
+  LocationsEditor,
+  toLocationDrafts,
+  fromLocationDrafts,
+  type LocationDraft,
+} from '../components/LocationsEditor';
 import { Spinner } from '../components/Spinner';
 import { api, ApiError } from '../lib/api';
 import { formatBudget, splitModeLabel } from '../lib/format';
@@ -17,19 +23,22 @@ type Fields = {
   title: string;
   date: string;
   time: string;
-  location: string;
   attendees: string;
   budget: string;
   splitMode: string;
 };
 
-const EMPTY: Fields = { title: '', date: '', time: '', location: '', attendees: '', budget: '', splitMode: 'Even split' };
+const EMPTY: Fields = { title: '', date: '', time: '', attendees: '', budget: '', splitMode: 'Even split' };
 
 export function CreateConfirmScreen({ navigation }: ScreenProps<'CreateConfirm'>) {
   const t = useTheme();
   const { draft, setDraft } = useDraft();
   const keyboardInset = useKeyboardInset();
   const [fields, setFields] = useState<Fields>(draft.fields ?? EMPTY);
+  const [locations, setLocations] = useState<LocationDraft[]>(
+    draft.locations ? toLocationDrafts(draft.locations) : [],
+  );
+  const [showLocErr, setShowLocErr] = useState(false);
   const [extracting, setExtracting] = useState(!draft.fields);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,13 +55,14 @@ export function CreateConfirmScreen({ navigation }: ScreenProps<'CreateConfirm'>
           title: ex.title,
           date: ex.dateLabel,
           time: ex.timeLabel,
-          location: ex.locationName,
           attendees: String(ex.attendees),
           budget: formatBudget(ex.budgetMajor, ex.currency),
           splitMode: splitModeLabel(ex.splitMode),
         };
+        const locs = toLocationDrafts(ex.locations);
         setFields(next);
-        setDraft({ ...draft, extracted: ex, fields: next });
+        setLocations(locs);
+        setDraft({ ...draft, extracted: ex, fields: next, locations: fromLocationDrafts(locs) });
         setExtracting(false);
       })
       .catch((e: ApiError) => {
@@ -100,7 +110,6 @@ export function CreateConfirmScreen({ navigation }: ScreenProps<'CreateConfirm'>
     { key: 'title', label: 'Event title' },
     { key: 'date', label: 'Date' },
     { key: 'time', label: 'Time' },
-    { key: 'location', label: 'Location' },
     { key: 'attendees', label: 'Attendees' },
     { key: 'budget', label: 'Total budget' },
     { key: 'splitMode', label: 'Split mode' },
@@ -137,6 +146,11 @@ export function CreateConfirmScreen({ navigation }: ScreenProps<'CreateConfirm'>
                 isLast={i === rows.length - 1}
               />
             ))}
+          </View>
+
+          <View style={{ gap: 10 }}>
+            <ZenText variant="eyebrow" tone="fg3">LOCATIONS</ZenText>
+            <LocationsEditor locations={locations} setLocations={setLocations} showErrors={showLocErr} />
           </View>
 
           <View>
@@ -176,7 +190,12 @@ export function CreateConfirmScreen({ navigation }: ScreenProps<'CreateConfirm'>
           variant="primary"
           trailingArrow
           onPress={() => {
-            setDraft({ ...draft, fields });
+            const locs = fromLocationDrafts(locations);
+            if (!locs.length) {
+              setShowLocErr(true);
+              return;
+            }
+            setDraft({ ...draft, fields, locations: locs });
             navigation.navigate('CreateProcessing');
           }}
         />

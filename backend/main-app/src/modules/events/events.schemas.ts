@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/** One event stop, as sent by the create-confirm / EditEvent locations editor. */
+const locationInput = z.object({
+  name: z.string().min(1),
+  query: z.string().optional(),
+  label: z.string().nullable().optional(),
+});
+
 export const extractDraftSchema = z.object({
   message: z.string().min(8, 'Describe your event in a bit more detail'),
   todayISO: z.string().optional(),
@@ -12,7 +19,7 @@ export const createEventSchema = z.object({
   timeLabel: z.string().min(1),
   startsAtISO: z.string().nullable().optional(),
   endsAtISO: z.string().nullable().optional(),
-  locationName: z.string().min(1),
+  locations: z.array(locationInput).min(1).max(25),
   attendees: z.number().int().min(1),
   guests: z.array(z.string()).optional(),
   budget: z.union([z.string(), z.number()]).nullable().optional(),
@@ -27,6 +34,7 @@ export const updateEventSchema = z.object({
   dateLabel: z.string().min(1).optional(),
   timeLabel: z.string().min(1).optional(),
   location: z.string().min(1).optional(),
+  locations: z.array(locationInput).min(1).max(25).optional(),
   splitMode: z.enum(['EVEN', 'BY_SHARE', 'BY_ITEM']).optional(),
   startsAtISO: z.string().datetime({ offset: true }).nullable().optional(),
   endsAtISO: z.string().datetime({ offset: true }).nullable().optional(),

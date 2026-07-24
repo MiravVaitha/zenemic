@@ -28,7 +28,7 @@ export async function generate(identity: SupabaseIdentity, prompt: string) {
     timeLabel: draft.timeLabel,
     startsAtISO: draft.startsAtISO,
     endsAtISO: draft.endsAtISO,
-    locationName: draft.locationName,
+    locations: draft.locations,
     attendees: draft.attendees,
     guests: draft.guests,
     budget: draft.budgetMajor,

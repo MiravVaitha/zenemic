@@ -18,6 +18,11 @@ import {
 
 export const eventsRouter = Router();
 
+// Public (signature-gated) static-map proxy. Loaded by an <Image> that can't
+// send a Bearer token, so it authenticates via the signed URL rather than the
+// session — MUST stay registered before the `authenticate` guard below.
+eventsRouter.get('/:id/map.png', asyncHandler(ctrl.getMap));
+
 eventsRouter.use(authenticate);
 
 // Create flow.

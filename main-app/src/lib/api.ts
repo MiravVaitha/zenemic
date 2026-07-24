@@ -103,6 +103,7 @@ export const api = {
       dateLabel?: string;
       timeLabel?: string;
       location?: string;
+      locations?: { name: string; query?: string; label?: string | null }[];
       splitMode?: SplitMode;
       startsAtISO?: string | null;
       endsAtISO?: string | null;

@@ -47,7 +47,7 @@ export function CreateProcessingScreen({ navigation }: ScreenProps<'CreateProces
       title: f.title,
       dateLabel: f.date,
       timeLabel: f.time,
-      locationName: f.location,
+      locations: draft.locations ?? ex?.locations ?? [],
       attendees: Math.max(1, parseInt(f.attendees, 10) || ex?.attendees || 1),
       guests: ex?.guests ?? [],
       budget: f.budget || null,

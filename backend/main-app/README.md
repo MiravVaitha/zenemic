@@ -64,10 +64,11 @@ DELETE /auth/account            (delete profile + Supabase auth user)  (auth)
 
 # Events
 POST   /events/draft            { message, todayISO?, timezoneOffset? }  (auth)
-POST   /events                  { title, dateLabel, timeLabel, locationName, attendees, ... }  (auth)
+POST   /events                  { title, dateLabel, timeLabel, locations: [{name, query?, label?}], attendees, ... }  (auth)
 GET    /events                  ?kind=planned|ongoing|previous (optional)  (auth)
 GET    /events/:id              (auth)
-PATCH  /events/:id              { title?, dateLabel?, timeLabel?, location?, splitMode? }  (auth)
+GET    /events/:id/map.png      static-map proxy, signed (?exp&sig) — no auth header  (public)
+PATCH  /events/:id              { title?, dateLabel?, timeLabel?, locations?, splitMode? }  (auth)
 DELETE /events/:id              (auth)
 
 # Planner chart / attendees

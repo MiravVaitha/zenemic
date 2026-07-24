@@ -10,6 +10,7 @@ export * from './lib/errors'; // AppError, badRequest, unauthorized, forbidden, 
 export * from './lib/money'; // minorUnitFactor, toMinor, toMajor, parseBudgetToMinor, formatMoney, evenSplit
 export { asyncHandler } from './lib/http';
 export { signOAuthState, verifyOAuthState } from './lib/oauthState';
+export { signMapUrl, verifyMapToken } from './lib/mapToken';
 export { supabaseAdmin, verifySupabaseToken, type SupabaseIdentity } from './lib/supabase';
 export { env, isProd, isDev, corsOrigins, features } from './config/env';
 export { logger } from './config/logger';

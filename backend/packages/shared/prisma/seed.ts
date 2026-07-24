@@ -58,6 +58,12 @@ async function main() {
       kind: 'PLANNED',
       status: 'ACTIVE',
       location: 'Sister Ray, Hackney',
+      locations: {
+        create: [
+          { order: 0, name: 'Sister Ray, Hackney', query: 'Sister Ray, Hackney, London', label: 'Dinner' },
+          { order: 1, name: 'The Alibi, Dalston', query: 'The Alibi, Dalston, London', label: 'After-party' },
+        ],
+      },
       attendeesCount: 12,
       budgetMinor: 48000,
       currency: 'gbp',

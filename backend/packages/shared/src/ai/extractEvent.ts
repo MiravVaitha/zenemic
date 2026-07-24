@@ -9,8 +9,9 @@ export const ExtractedEventSchema = z.object({
   timeLabel: z.string(),
   startsAtISO: z.string().nullable(),
   endsAtISO: z.string().nullable(),
-  locationName: z.string(),
-  locationQuery: z.string(),
+  locations: z
+    .array(z.object({ name: z.string(), query: z.string(), label: z.string().nullable() }))
+    .min(1),
   attendees: z.number().int().min(1),
   guests: z.array(z.string()),
   budgetMajor: z.number().nullable(),
@@ -28,8 +29,24 @@ const EXTRACTED_EVENT_JSON_SCHEMA: Record<string, unknown> = {
     timeLabel: { type: 'string', description: 'Display time, e.g. "7:30 PM" or "All day"' },
     startsAtISO: { type: ['string', 'null'], description: 'ISO timestamp or null' },
     endsAtISO: { type: ['string', 'null'], description: 'ISO timestamp or null' },
-    locationName: { type: 'string', description: 'Venue/place as written' },
-    locationQuery: { type: 'string', description: 'Clean string for a maps search' },
+    locations: {
+      type: 'array',
+      minItems: 1,
+      description: 'Ordered stops; the first is the primary venue. Usually just one.',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Place as written, e.g. "Sister Ray, Hackney"' },
+          query: { type: 'string', description: 'Clean string for a maps search' },
+          label: {
+            type: ['string', 'null'],
+            description: 'Short role e.g. "Venue"/"After-party"/"Meet point", or null',
+          },
+        },
+        required: ['name', 'query', 'label'],
+        additionalProperties: false,
+      },
+    },
     attendees: { type: 'integer', minimum: 1, description: 'Total headcount including host' },
     guests: { type: 'array', items: { type: 'string' }, description: 'Named guests (exclude host)' },
     budgetMajor: { type: ['number', 'null'], description: 'Total budget in major units, or null' },
@@ -42,8 +59,7 @@ const EXTRACTED_EVENT_JSON_SCHEMA: Record<string, unknown> = {
     'timeLabel',
     'startsAtISO',
     'endsAtISO',
-    'locationName',
-    'locationQuery',
+    'locations',
     'attendees',
     'guests',
     'budgetMajor',

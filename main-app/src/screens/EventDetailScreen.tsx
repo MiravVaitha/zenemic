@@ -53,6 +53,7 @@ export function EventDetailScreen({ navigation, route }: ScreenProps<'EventDetai
   const headcount = detail ? detail.attendees.length : base.attendees;
   const isOngoing = ev.kind === 'ongoing';
   const stages = detail?.stages ?? [];
+  const locs = detail?.locations ?? [];
 
   const toggleStage = async (i: number) => {
     const s = stages[i];
@@ -76,7 +77,7 @@ export function EventDetailScreen({ navigation, route }: ScreenProps<'EventDetai
     { id: 'chart', label: 'Event planner chart', meta: `${stages.length || '—'} STAGES`, icon: <IconChart color={t.fg2} />, onPress: () => navigation.navigate('PlannerChart', { event: base }) },
     { id: 'cal', label: 'Calendar event', meta: calendar ? 'GOOGLE · SYNCED' : 'NOT CONNECTED', icon: <IconCalendar color={t.fg2} />, onPress: () => openUrl(calendar?.htmlLink, 'Connect Google Calendar in Settings to sync this event.') },
     { id: 'split', label: 'Payment splitter', meta: `${ev.budget ?? '—'} · ${headcount} WAYS`, icon: <IconMoney color={t.fg2} />, onPress: () => navigation.navigate('Splitter', { eventId: base.id, title: ev.title }) },
-    { id: 'loc', label: 'Linked locations', meta: 'MAPS', icon: <IconPin color={t.fg2} />, onPress: () => openUrl(detail?.resources.mapsUrl, 'No location link for this event yet.') },
+    { id: 'loc', label: 'Linked locations', meta: locs.length > 1 ? `${locs.length} STOPS` : 'MAPS', icon: <IconPin color={t.fg2} />, onPress: () => (locs.length > 1 ? navigation.navigate('EventLocations', { event: base }) : openUrl(locs[0]?.mapsUrl ?? detail?.resources.mapsUrl, 'No location link for this event yet.')) },
     { id: 'pix', label: 'Shared photo album', meta: 'OPEN', icon: <IconPhotos color={t.fg2} />, onPress: () => navigation.navigate('Album', { eventId: base.id, title: ev.title }) },
   ];
 
@@ -101,7 +102,7 @@ export function EventDetailScreen({ navigation, route }: ScreenProps<'EventDetai
             <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
               <Meta>{ev.time}</Meta>
               <Meta>·</Meta>
-              <Meta>{ev.location}</Meta>
+              <Meta>{ev.location}{locs.length > 1 ? ` +${locs.length - 1} more` : ''}</Meta>
               <Meta>·</Meta>
               <Meta>{headcount} GUESTS</Meta>
             </View>

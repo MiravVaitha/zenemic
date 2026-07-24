@@ -81,8 +81,31 @@ model Event {
   receipts     Receipt[]
   chatMessages ChatMessage[]
   photos       AlbumPhoto[]
+  locations    EventLocation[]
 
   @@index([userId, kind])
+}
+
+// One stop for an event. An event has one or more, in `order`. The first stop
+// is the "primary" and is mirrored onto Event.location/locationLat/Lng/placeId/
+// mapsUrl so single-location consumers (header, calendar, chat, keyboard) keep
+// working unchanged. Events created before this model existed have no rows —
+// the serializer synthesises a single stop from the mirror columns for them.
+model EventLocation {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  order   Int
+  name    String  // display, e.g. "Sister Ray, Hackney"
+  query   String  // clean maps-search string (was the AI's unused locationQuery)
+  label   String? // role: "Venue" / "After-party" / "Meet point" / null
+  lat     Float?
+  lng     Float?
+  placeId String? // Google Maps place_id
+  mapsUrl String? // per-stop directions deep link
+
+  @@index([eventId])
 }
 
 // One photo in an event's shared album (stored in object storage, tracked here).

@@ -2,6 +2,7 @@ import type {
   AlbumPhoto,
   Attendee,
   Event,
+  EventLocation,
   Receipt,
   ReceiptItem,
   Split,
@@ -9,9 +10,51 @@ import type {
   Stage,
 } from '@prisma/client';
 import { formatMoney, toMajor } from '../lib/money';
+import { routeLink } from '../integrations/googleMaps';
+import { features } from '../config/env';
+import { signMapUrl } from '../lib/mapToken';
 import { deriveEventKind } from './eventKind';
 
-export function serializeEvent(event: Event) {
+/**
+ * Ordered stops for an event. Uses the `EventLocation` rows when present, and
+ * otherwise synthesises a single stop from the primary mirror columns so events
+ * created before multi-location existed still serialise correctly (no backfill).
+ */
+function eventStops(event: Event & { locations: EventLocation[] }) {
+  if (event.locations.length) {
+    return [...event.locations]
+      .sort((a, b) => a.order - b.order)
+      .map((l) => ({
+        id: l.id,
+        order: l.order,
+        name: l.name,
+        query: l.query,
+        label: l.label,
+        lat: l.lat,
+        lng: l.lng,
+        placeId: l.placeId,
+        mapsUrl: l.mapsUrl,
+      }));
+  }
+  return [
+    {
+      id: `${event.id}:0`,
+      order: 0,
+      name: event.location,
+      query: event.location,
+      label: null as string | null,
+      lat: event.locationLat,
+      lng: event.locationLng,
+      placeId: event.placeId,
+      mapsUrl: event.mapsUrl,
+    },
+  ];
+}
+
+export function serializeEvent(event: Event & { locations: EventLocation[] }) {
+  const stops = eventStops(event);
+  // Only real, geocoded rows get a static map — that's what the proxy serves.
+  const hasGeo = event.locations.some((l) => l.lat != null && l.lng != null);
   return {
     id: event.id,
     title: event.title,
@@ -26,6 +69,16 @@ export function serializeEvent(event: Event) {
       event.locationLat != null && event.locationLng != null
         ? { lat: event.locationLat, lng: event.locationLng }
         : null,
+    // Ordered stops; the first is the primary (mirrored onto `location` above).
+    locations: stops.map((s) => ({
+      id: s.id,
+      order: s.order,
+      name: s.name,
+      label: s.label,
+      query: s.query,
+      coordinates: s.lat != null && s.lng != null ? { lat: s.lat, lng: s.lng } : null,
+      mapsUrl: s.mapsUrl,
+    })),
     attendees: event.attendeesCount,
     budget: event.budgetMinor != null ? formatMoney(event.budgetMinor, event.currency) : null,
     budgetMinor: event.budgetMinor,
@@ -37,6 +90,10 @@ export function serializeEvent(event: Event) {
         ? { eventId: event.calendarEventId, htmlLink: event.calendarHtmlLink }
         : null,
       mapsUrl: event.mapsUrl,
+      // Whole-journey route through every stop (null for a single stop).
+      routeUrl: routeLink(stops.map((s) => ({ query: s.query, placeId: s.placeId }))),
+      // Signed path to the static-map proxy; null when nothing is geocoded.
+      mapImageUrl: features.googleMaps && hasGeo ? signMapUrl(event.id) : null,
       albumUrl: event.albumUrl,
     },
     createdAt: event.createdAt,

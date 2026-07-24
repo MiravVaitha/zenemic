@@ -7,6 +7,12 @@ import { Section, Anchor } from '../components/Section';
 import { ZenText } from '../components/ZenText';
 import { ZenButton } from '../components/ZenButton';
 import { EditableRow } from '../components/EditableRow';
+import {
+  LocationsEditor,
+  toLocationDrafts,
+  fromLocationDrafts,
+  type LocationDraft,
+} from '../components/LocationsEditor';
 import { Spinner } from '../components/Spinner';
 import { api, ApiError } from '../lib/api';
 import { formatDateLabel, formatTimeLabel, parseLabelsToDate, splitModeLabel } from '../lib/format';
@@ -29,7 +35,7 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
   // Editable fields, seeded once from the fetched detail. Fetch on mount only —
   // a focus refetch would clobber in-progress edits after a Splitter round-trip.
   const [title, setTitle] = useState('');
-  const [location, setLocation] = useState('');
+  const [locations, setLocations] = useState<LocationDraft[]>([]);
   const [attendees, setAttendees] = useState('');
   const [budget, setBudget] = useState('');
   const [splitMode, setSplitMode] = useState<SplitMode>('EVEN');
@@ -53,7 +59,7 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
         if (!alive) return;
         setDetail(d);
         setTitle(d.title);
-        setLocation(d.location);
+        setLocations(toLocationDrafts(d.locations));
         setAttendees(String(d.attendees.length));
         setBudget(d.budget ?? '');
         setSplitMode(d.splitMode);
@@ -77,8 +83,9 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
     ) ?? false;
 
   const attendeeCount = parseInt(attendees, 10);
+  const cleanLocations = fromLocationDrafts(locations);
   const invalidTitle = !title.trim();
-  const invalidLocation = !location.trim();
+  const invalidLocation = cleanLocations.length === 0;
   const invalidDate = !dateLabel.trim();
   const invalidTime = !timeLabel.trim();
   const invalidAttendees = !Number.isFinite(attendeeCount) || attendeeCount < 1;
@@ -91,7 +98,8 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
     if (!detail) return {};
     const patch: Parameters<typeof api.updateEvent>[1] = {};
     if (title.trim() !== detail.title) patch.title = title.trim();
-    if (location.trim() !== detail.location) patch.location = location.trim();
+    const prevLocs = detail.locations.map((l) => ({ name: l.name, label: l.label, query: l.query }));
+    if (JSON.stringify(cleanLocations) !== JSON.stringify(prevLocs)) patch.locations = cleanLocations;
     if (dateLabel.trim() !== detail.date) patch.dateLabel = dateLabel.trim();
     if (timeLabel.trim() !== detail.time) patch.timeLabel = timeLabel.trim();
     const startsISO = startsAt?.toISOString() ?? null;
@@ -294,12 +302,6 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
                   invalid={showErrors && invalidTime}
                 />
                 <EditableRow
-                  label="Location"
-                  value={location}
-                  onChange={setLocation}
-                  invalid={showErrors && invalidLocation}
-                />
-                <EditableRow
                   label="Attendees"
                   value={attendees}
                   onChange={setAttendees}
@@ -323,6 +325,15 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
                   locked={moneyLocked}
                   isLast
                 />
+              </View>
+
+              <View style={{ gap: 10 }}>
+                <ZenText variant="eyebrow" tone="fg3">LOCATIONS</ZenText>
+                <ZenText variant="body" tone="fg2" style={{ marginTop: -2 }}>
+                  The first stop is the primary venue. Add more for multi-stop nights — the maps route and
+                  planner chart follow the order.
+                </ZenText>
+                <LocationsEditor locations={locations} setLocations={setLocations} showErrors={showErrors} />
               </View>
 
               {moneyLocked ? (

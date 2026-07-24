@@ -52,6 +52,48 @@ export function directionsLink(params: { destination: string; placeId?: string |
   return url.toString();
 }
 
+/**
+ * Multi-stop route deep link for an event with several locations. Origin is left
+ * unset so Google routes from the user's current location → every stop in order.
+ * Returns null for fewer than two stops (a single stop uses `directionsLink`).
+ */
+export function routeLink(stops: { query: string; placeId?: string | null }[]): string | null {
+  if (stops.length < 2) return null;
+  const url = new URL('https://www.google.com/maps/dir/');
+  url.searchParams.set('api', '1');
+  const destination = stops[stops.length - 1]!;
+  url.searchParams.set('destination', destination.query);
+  if (destination.placeId) url.searchParams.set('destination_place_id', destination.placeId);
+  const waypoints = stops.slice(0, -1);
+  url.searchParams.set('waypoints', waypoints.map((s) => s.query).join('|'));
+  // place-id waypoints only work when ALL are known, else Google rejects the mix.
+  if (waypoints.length && waypoints.every((s) => s.placeId)) {
+    url.searchParams.set('waypoints_place_ids', waypoints.map((s) => s.placeId).join('|'));
+  }
+  return url.toString();
+}
+
+/**
+ * Static Maps PNG with a numbered pin per geocoded stop — the image at the top
+ * of the app's Locations screen. Needs the API key, so this URL is only ever
+ * fetched server-side (the app loads it via the backend's signed map proxy).
+ */
+export function staticMapUrl(
+  stops: { lat: number; lng: number }[],
+  opts: { size?: string; scale?: number } = {},
+): string | null {
+  if (!features.googleMaps || !stops.length) return null;
+  const url = new URL('https://maps.googleapis.com/maps/api/staticmap');
+  url.searchParams.set('size', opts.size ?? '640x360');
+  url.searchParams.set('scale', String(opts.scale ?? 2));
+  stops.forEach((s, i) => {
+    // Labels only render for 1-9; extra stops still get a (label-less) pin.
+    url.searchParams.append('markers', `color:0xFF6B4A|label:${i + 1}|${s.lat},${s.lng}`);
+  });
+  url.searchParams.set('key', env.GOOGLE_MAPS_API_KEY as string);
+  return url.toString();
+}
+
 export type TravelMode = 'driving' | 'walking' | 'bicycling' | 'transit';
 
 export interface TravelEstimate {
