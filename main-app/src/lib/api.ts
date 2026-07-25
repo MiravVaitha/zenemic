@@ -144,12 +144,14 @@ export const api = {
   getAlbum: (id: string) =>
     request<{ count: number; albumUrl: string | null; photos: AlbumPhoto[] }>(`/events/${id}/album`),
   albumUploadUrl: (id: string, body: { contentType: string; ext?: string }) =>
-    request<{ uploadUrl: string; key: string; publicUrl: string }>(`/events/${id}/album/upload-url`, {
+    request<{ uploadUrl: string; key: string }>(`/events/${id}/album/upload-url`, {
       method: 'POST',
       body,
     }),
-  addPhoto: (id: string, body: { url: string; caption?: string; uploaderName?: string }) =>
+  addPhoto: (id: string, body: { key: string; caption?: string; width?: number; height?: number }) =>
     request<AlbumPhoto>(`/events/${id}/album`, { method: 'POST', body }),
+  deletePhoto: (id: string, photoId: string) =>
+    request<void>(`/events/${id}/album/${photoId}`, { method: 'DELETE' }),
 
   // Integrations
   googleConnectUrl: () => request<{ url: string }>('/integrations/google/connect'),

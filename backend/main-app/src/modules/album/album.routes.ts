@@ -29,9 +29,11 @@ albumRouter.post(
   '/',
   validate({
     body: z.object({
-      url: z.string().url(),
+      // The object key the client uploaded to (from /upload-url) — NOT a URL.
+      key: z.string().min(1),
       caption: z.string().optional(),
-      uploaderName: z.string().optional(),
+      width: z.number().int().positive().optional(),
+      height: z.number().int().positive().optional(),
     }),
   }),
   asyncHandler(async (req: Request, res: Response) => {

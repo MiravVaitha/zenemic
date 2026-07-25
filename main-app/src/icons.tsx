@@ -158,3 +158,24 @@ export const IconEdit = ({ color = 'currentColor', size = 14 }: IconProps) => (
     <Path d="M2 7l3.5 3.5L12 4" stroke={color} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
+
+export const IconDownload = ({ color = 'currentColor', size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <Path d="M8 2v8M4.5 7L8 10.5 11.5 7" stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M2.5 12.5h11" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
+  </Svg>
+);
+
+export const IconShare = ({ color = 'currentColor', size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <Path d="M8 10V2.5M5 5l3-3 3 3" stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M4 7.5H3v6h10v-6h-1" stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const IconTrash = ({ color = 'currentColor', size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <Path d="M3 4.5h10M6.5 4.5V3h3v1.5M4 4.5l.6 8.5h6.8L12 4.5" stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M6.5 7v3.5M9.5 7v3.5" stroke={color} strokeWidth={1.2} strokeLinecap="round" />
+  </Svg>
+);

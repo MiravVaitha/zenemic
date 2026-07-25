@@ -112,11 +112,16 @@ export function serializeStage(stage: Stage) {
   };
 }
 
+// The photo's `url` is NOT here: it's a short-lived signed URL the album service
+// injects per-request (`{ ...serializeAlbumPhoto(p), url: await signedGetUrl(...) }`).
+// Keeping signing out of this pure/sync serializer.
 export function serializeAlbumPhoto(photo: AlbumPhoto) {
   return {
     id: photo.id,
-    url: photo.url,
     caption: photo.caption,
+    width: photo.width,
+    height: photo.height,
+    uploaderId: photo.uploaderId,
     uploaderName: photo.uploaderName,
     createdAt: photo.createdAt,
   };

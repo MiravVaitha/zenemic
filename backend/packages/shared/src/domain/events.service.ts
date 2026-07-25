@@ -6,6 +6,7 @@ import { extractEvent, generateChart, type ExtractedEvent } from '../ai';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 import * as calendar from '../integrations/googleCalendar';
+import * as storage from '../integrations/storage';
 import { generateResources, linkLocations, type ResourceReport } from './resources.service';
 import { createOrUpdateSplit } from './splitter.service';
 import {
@@ -151,12 +152,24 @@ async function assertOwner(userId: string, eventId: string) {
 
 export async function getEvent(userId: string, eventId: string) {
   const event = await loadOwned(userId, eventId);
+  // Receipt images live in the same private bucket as album photos, so their
+  // stored value is a key — sign it into a short-lived URL for the client.
+  const [receipts, albumCount] = await Promise.all([
+    Promise.all(
+      event.receipts.map(async (r) => {
+        const base = serializeReceipt(r);
+        return { ...base, imageUrl: await storage.signedGetUrl(base.imageUrl) };
+      }),
+    ),
+    prisma.albumPhoto.count({ where: { eventId } }),
+  ]);
   return {
     ...serializeEvent(event),
     stages: serializeChart(event, event.stages).stages,
     attendees: event.attendees.map(serializeAttendee),
     split: serializeSplit(event.split),
-    receipts: event.receipts.map(serializeReceipt),
+    receipts,
+    albumCount,
   };
 }
 
@@ -448,5 +461,25 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
 
 export async function deleteEvent(userId: string, eventId: string): Promise<void> {
   await loadOwned(userId, eventId);
+  // Reclaim object storage before the DB cascade drops the rows: the cascade
+  // deletes AlbumPhoto/Receipt rows but NOT the underlying files, so without
+  // this they'd orphan forever (the storage cost the private-bucket work fixes).
+  if (storage.storageEnabled) {
+    const [photos, receipts] = await Promise.all([
+      prisma.albumPhoto.findMany({ where: { eventId }, select: { storageKey: true } }),
+      prisma.receipt.findMany({
+        where: { eventId, imageUrl: { not: null } },
+        select: { imageUrl: true },
+      }),
+    ]);
+    const keys = [
+      ...photos.map((p) => p.storageKey),
+      // Skip legacy absolute-URL rows (pre-private-bucket) — nothing to delete by key.
+      ...receipts
+        .map((r) => r.imageUrl)
+        .filter((u): u is string => Boolean(u) && !/^https?:\/\//i.test(u!)),
+    ];
+    await Promise.all(keys.map((key) => storage.deleteObject(key).catch(() => undefined)));
+  }
   await prisma.event.delete({ where: { id: eventId } });
 }

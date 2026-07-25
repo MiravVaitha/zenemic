@@ -106,6 +106,8 @@ export interface EventDetail extends Omit<ApiEvent, 'attendees'> {
   stages: ApiStage[];
   split: Split | null;
   receipts: Receipt[];
+  /** How many photos are in the shared album (drives the resource-row count). */
+  albumCount: number;
 }
 
 /** AI extraction result (POST /events/draft). */
@@ -170,8 +172,12 @@ export interface Features {
 
 export interface AlbumPhoto {
   id: string;
+  /** Short-lived SIGNED url. Re-fetched with the album; cache image bytes by `id`, not this. */
   url: string;
   caption: string | null;
+  width: number | null;
+  height: number | null;
+  uploaderId: string | null;
   uploaderName: string | null;
   createdAt: string;
 }

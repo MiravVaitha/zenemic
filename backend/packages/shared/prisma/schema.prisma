@@ -33,7 +33,8 @@ model User {
   googleRefreshToken String?
   googleCalendarId   String? // defaults to "primary" once connected
 
-  events Event[]
+  events         Event[]
+  uploadedPhotos AlbumPhoto[] @relation("UploadedPhotos")
 }
 
 // ─────────────────────────────────── Events ─────────────────────────────────
@@ -108,13 +109,21 @@ model EventLocation {
   @@index([eventId])
 }
 
-// One photo in an event's shared album (stored in object storage, tracked here).
+// One photo in an event's shared album. The file lives in a PRIVATE object-
+// storage bucket; we track its key here and hand out short-lived signed URLs on
+// read (never a public URL). `uploaderId` attributes the photo to a real user so
+// that when event attendees can contribute, "delete your own" is enforceable;
+// `uploaderName` is a denormalized display fallback that survives user deletion.
 model AlbumPhoto {
   id           String   @id @default(cuid())
   eventId      String
   event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  url          String
+  storageKey   String   // object key in the private bucket, e.g. albums/{eventId}/{uuid}.jpg
   caption      String?
+  width        Int? // pixel dimensions — drive the masonry layout without reflow
+  height       Int?
+  uploaderId   String?
+  uploader     User?    @relation("UploadedPhotos", fields: [uploaderId], references: [id], onDelete: SetNull)
   uploaderName String?
   createdAt    DateTime @default(now())
 

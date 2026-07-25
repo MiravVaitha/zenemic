@@ -17,6 +17,22 @@
       "backgroundColor": "#f8f6f1",
       "resizeMode": "contain"
     },
-    "plugins": ["@react-native-community/datetimepicker"]
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Zenemic to access your photos so you can add them to a shared event album."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Zenemic to access your photos so you can add them to a shared event album.",
+          "savePhotosPermission": "Allow Zenemic to save event photos to your device.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
+    ]
   }
 }

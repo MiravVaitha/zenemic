@@ -1,10 +1,27 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import { env, features } from '../config/env';
 import { notConfigured } from '../lib/errors';
 
 export const storageEnabled = features.storage;
+
+/**
+ * The bucket is PRIVATE. Objects are never world-readable — every read goes
+ * through a signed URL (`signedGetUrl`) issued only after the app layer has
+ * checked the caller may see that event. Unlike a permanent public URL, a leaked
+ * one EXPIRES and can't be renewed without authenticating. An hour is long enough
+ * to browse/download a session (the app re-fetches fresh URLs on focus and caches
+ * bytes by a stable key, so rotation causes no re-downloads), short enough to bound
+ * a leak. Tune down for stricter posture.
+ */
+const READ_URL_TTL = 3600; // seconds (1 hour)
+const UPLOAD_URL_TTL = 900; // seconds (15 min)
 
 let client: S3Client | null = null;
 
@@ -23,27 +40,26 @@ function getClient(): S3Client {
   return client;
 }
 
-function publicUrl(key: string): string {
-  const base = env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '');
-  if (base) return `${base}/${key}`;
-  // Fall back to the standard virtual-hosted–style S3 URL.
-  return `https://${env.S3_BUCKET}.s3.${env.S3_REGION}.amazonaws.com/${key}`;
-}
-
-/** Public URL prefix for an event's shared photo album. */
+/**
+ * The storage prefix for an event's shared album. This is a MARKER, not a
+ * fetchable URL — the bucket is private, so there is no public URL. Reads use
+ * `signedGetUrl` per object.
+ */
 export function albumUrl(eventId: string): string {
-  return publicUrl(`albums/${eventId}/`);
+  return `albums/${eventId}/`;
 }
 
 /**
- * Presign a direct-to-S3 upload so the client can add a photo to an album
- * without proxying bytes through the backend.
+ * Presign a direct-to-S3 upload so the client can add a photo without proxying
+ * bytes through the backend. Returns the object `key` (stored in the DB) — the
+ * caller confirms the upload via the album's `record` endpoint, which validates
+ * the key belongs to the event.
  */
 export async function createPresignedUpload(params: {
   eventId: string;
   contentType: string;
   ext?: string;
-}): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
+}): Promise<{ uploadUrl: string; key: string }> {
   const s3 = getClient();
   const key = `albums/${params.eventId}/${randomUUID()}${params.ext ? `.${params.ext}` : ''}`;
   const command = new PutObjectCommand({
@@ -51,11 +67,39 @@ export async function createPresignedUpload(params: {
     Key: key,
     ContentType: params.contentType,
   });
-  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  return { uploadUrl, key, publicUrl: publicUrl(key) };
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: UPLOAD_URL_TTL });
+  return { uploadUrl, key };
 }
 
-/** Upload a buffer server-side (e.g. a receipt image from the chat panel). */
+/**
+ * A short-lived signed GET URL for a private object. Returns null for an empty
+ * key or when storage is off. Values that are already absolute URLs are passed
+ * through untouched — a safety net for any legacy row written while the bucket
+ * was still public.
+ */
+export async function signedGetUrl(
+  key: string | null | undefined,
+  expiresIn = READ_URL_TTL,
+): Promise<string | null> {
+  if (!key) return null;
+  if (/^https?:\/\//i.test(key)) return key; // legacy absolute URL — leave as-is
+  if (!features.storage) return null;
+  const s3 = getClient();
+  const command = new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key });
+  return getSignedUrl(s3, command, { expiresIn });
+}
+
+/** Delete a single object by key. Throws on hard failure — callers decide policy. */
+export async function deleteObject(key: string): Promise<void> {
+  const s3 = getClient();
+  await s3.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
+}
+
+/**
+ * Upload a buffer server-side (e.g. a receipt image from the chat panel).
+ * Returns the storage KEY (not a URL) — the bucket is private, so the caller
+ * stores the key and signs it on read.
+ */
 export async function uploadBuffer(params: {
   key: string;
   body: Buffer;
@@ -70,5 +114,5 @@ export async function uploadBuffer(params: {
       ContentType: params.contentType,
     }),
   );
-  return publicUrl(params.key);
+  return params.key;
 }
