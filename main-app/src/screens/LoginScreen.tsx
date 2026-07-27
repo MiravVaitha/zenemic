@@ -18,7 +18,7 @@ function friendly(message: string): string {
 
 export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
   const t = useTheme();
-  const { signIn } = useAuth();
+  const { signIn, authNotice, clearAuthNotice } = useAuth();
   const keyboardInset = useKeyboardInset();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -30,6 +30,7 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
     if (!valid || loading) return;
     setLoading(true);
     setError(null);
+    clearAuthNotice();
     try {
       await signIn(email, pw);
       // Success: AppNavigator swaps to the app stack automatically.
@@ -55,6 +56,7 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
             <View style={{ alignItems: 'flex-end' }}>
               <ZenButton label="Forgot password" variant="link" onPress={() => navigation.navigate('Forgot')} />
             </View>
+            {authNotice ? <ZenText variant="body" style={{ color: t.danger }}>{authNotice}</ZenText> : null}
             {error ? <ZenText variant="body" style={{ color: t.danger }}>{error}</ZenText> : null}
           </View>
         </Section>

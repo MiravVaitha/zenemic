@@ -10,6 +10,7 @@ import { SplashScreen } from '../screens/SplashScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { KeyboardSetupScreen } from '../screens/KeyboardSetupScreen';
 import { EventsListScreen } from '../screens/EventsListScreen';
 import { EventDetailScreen } from '../screens/EventDetailScreen';
@@ -28,7 +29,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
   const t = useTheme();
-  const { session, loading } = useAuth();
+  const { session, loading, recovery } = useAuth();
 
   const navTheme = {
     ...(t.mode === 'dark' ? DarkTheme : DefaultTheme),
@@ -55,6 +56,12 @@ export function AppNavigator() {
           {loading ? (
             // Restoring the session — show the splash; the stack swaps below once done.
             <Stack.Screen name="Splash" component={SplashScreen} options={{ animation: 'fade' }} />
+          ) : recovery.active ? (
+            // Checked BEFORE `session`: a reset link mints a real session, so
+            // without this the user would be dropped into the app and never get
+            // to set a new password. The only ways out are saving one or
+            // cancelling (which signs out).
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ animation: 'fade' }} />
           ) : !session ? (
             // Logged out.
             <Stack.Group>

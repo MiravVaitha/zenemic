@@ -28,6 +28,7 @@ export type RootStackParamList = {
   SignUp: undefined;
   Login: undefined;
   Forgot: undefined;
+  ResetPassword: undefined;
   Keyboard: undefined;
   Events: undefined;
   // The API event is a superset of ZenEvent, so either passes structurally.

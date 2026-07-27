@@ -14,6 +14,8 @@ export interface ZenButtonProps {
   leading?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   fullWidth?: boolean;
+  /** Inert + dimmed, without changing the variant (e.g. a link mid-cooldown). */
+  disabled?: boolean;
 }
 
 export function ZenButton({
@@ -24,13 +26,15 @@ export function ZenButton({
   leading,
   style,
   fullWidth = true,
+  disabled = false,
 }: ZenButtonProps) {
   const t = useTheme();
+  const inert = disabled || variant === 'disabled';
 
   if (variant === 'link') {
     return (
-      <Pressable onPress={onPress} hitSlop={6} style={style}>
-        <ZenText variant="mark" tone="fg2">{label}</ZenText>
+      <Pressable onPress={inert ? undefined : onPress} hitSlop={6} style={style}>
+        <ZenText variant="mark" tone={inert ? 'fg3' : 'fg2'}>{label}</ZenText>
       </Pressable>
     );
   }
@@ -42,11 +46,11 @@ export function ZenButton({
     danger: { bg: 'transparent', color: t.danger, border: t.danger },
     disabled: { bg: t.fg3Bg, color: t.fg3 },
   };
-  const p = palette[variant];
+  const p = palette[inert ? 'disabled' : variant];
 
   return (
     <Pressable
-      onPress={variant === 'disabled' ? undefined : onPress}
+      onPress={inert ? undefined : onPress}
       style={({ pressed }) => [
         {
           width: fullWidth ? '100%' : undefined,
@@ -60,12 +64,12 @@ export function ZenButton({
           alignItems: 'center',
           justifyContent: 'center',
           gap: 8,
-          opacity: pressed && variant !== 'disabled' ? 0.85 : 1,
+          opacity: pressed && !inert ? 0.85 : 1,
           // Always keep `transform` a valid array. Toggling it to `undefined` on
           // release removes the prop, which Fabric passes to the dev validator as
           // `null` → "Cannot read property 'forEach' of null". Identity scale (1)
           // has no visual effect.
-          transform: [{ scale: pressed && variant !== 'disabled' ? 0.985 : 1 }],
+          transform: [{ scale: pressed && !inert ? 0.985 : 1 }],
         },
         style,
       ]}
