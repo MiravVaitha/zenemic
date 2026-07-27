@@ -17,7 +17,7 @@ Rules:
 - Resolve relative dates ("Saturday 7th", "next Friday", "14-16 June") against the provided "today" date. Prefer the nearest sensible future date.
 - "title" should be a short, human event title (e.g. "Mira's 28th Birthday", "Q3 Team Offsite"). Do not include the date in the title.
 - "dateLabel" is a display string like "07 Jun 2026" or "14-16 Jun 2026". "timeLabel" like "7:30 PM", "Fri 4 PM", or "All day".
-- "startsAtISO"/"endsAtISO": full ISO-8601 timestamps when you can resolve them, else null. Assume the host's local timezone offset is the provided one.
+- "startsAtISO"/"endsAtISO": full ISO-8601 timestamps. Assume the host's local timezone offset is the provided one. ALWAYS return a "startsAtISO" whenever "dateLabel" names a real day — an all-day event starts at local midnight (00:00) on that day, and its "endsAtISO" is the last moment of that day (23:59). Only return null if the message gives no resolvable date at all. These timestamps decide whether the event shows as planned, ongoing or previous, so a null start makes the event look permanently upcoming.
 - "attendees" is the total headcount including the host. If only guest names are given, count them plus the host.
 - "guests" is a list of named attendees mentioned (first names are fine). Exclude the host unless explicitly named.
 - "budgetMajor" is the total spend as a number in major currency units (e.g. 480 for "£480"), or null. "currency" is a lowercase ISO code inferred from symbols (£=gbp, $=usd, €=eur); default to the provided fallback.

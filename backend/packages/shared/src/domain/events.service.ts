@@ -17,8 +17,9 @@ import {
   serializeSplit,
   serializeReceipt,
 } from './events.serializer';
-import { deriveEventKind } from './eventKind';
-import type { EventKind, RsvpStatus, StageKind, StageTag } from '@prisma/client';
+import { deriveEventKind, type EventKindValue } from './eventKind';
+import { resolveInstantsFromLabels } from './eventTiming';
+import type { RsvpStatus, StageKind, StageTag } from '@prisma/client';
 import type { SupabaseIdentity } from '../lib/supabase';
 import { ensureProfile } from './profile';
 
@@ -50,7 +51,6 @@ export interface CreateEventInput {
   currency?: string;
   splitMode?: 'EVEN' | 'BY_SHARE' | 'BY_ITEM';
   sourceMessage?: string | null;
-  kind?: 'PLANNED' | 'ONGOING' | 'PREVIOUS';
 }
 
 /** Step 1 of the create flow: AI extraction only, no persistence. */
@@ -72,8 +72,21 @@ export async function createEvent(
   const user = await ensureProfile(identity); // create the profile row on first use
   const userId = user.id;
   const currency = (input.currency ?? env.STRIPE_CURRENCY).toLowerCase();
-  const startsAt = input.startsAtISO ? new Date(input.startsAtISO) : null;
-  const endsAt = input.endsAtISO ? new Date(input.endsAtISO) : null;
+  let startsAt = input.startsAtISO ? new Date(input.startsAtISO) : null;
+  let endsAt = input.endsAtISO ? new Date(input.endsAtISO) : null;
+  // The AI may resolve a date label but no instant (classically "All day"). Without
+  // a start, deriveEventKind pins the event to Planned forever — recover one.
+  if (!startsAt) {
+    const fallback = resolveInstantsFromLabels(
+      input.dateLabel,
+      input.timeLabel,
+      new Date().getFullYear(),
+    );
+    if (fallback) {
+      startsAt = fallback.startsAt;
+      endsAt = endsAt ?? fallback.endsAt;
+    }
+  }
   const budgetMinor = parseBudgetToMinor(input.budget ?? null, currency);
 
   // Build the attendee roster: host + named guests, padded to the headcount.
@@ -90,7 +103,6 @@ export async function createEvent(
       timeLabel: input.timeLabel,
       startsAt,
       endsAt,
-      kind: input.kind ?? deriveEventKind(startsAt, endsAt),
       status: 'DRAFT',
       location: input.locations[0]?.name ?? '',
       locations: {
@@ -120,7 +132,7 @@ export async function createEvent(
   return { event: serializeEvent(full), resources };
 }
 
-export async function listEvents(userId: string, kind?: EventKind) {
+export async function listEvents(userId: string, kind?: EventKindValue) {
   // `kind` is derived live in serializeEvent, so filter on the serialized value
   // rather than the stored column (which is only a best-effort snapshot).
   const events = await prisma.event.findMany({
@@ -306,10 +318,24 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
     return d;
   };
   const timesTouched = patch.startsAtISO !== undefined || patch.endsAtISO !== undefined;
-  const newStartsAt =
+  let newStartsAt =
     patch.startsAtISO !== undefined ? parseISO(patch.startsAtISO, 'startsAtISO') : event.startsAt;
-  const newEndsAt =
+  let newEndsAt =
     patch.endsAtISO !== undefined ? parseISO(patch.endsAtISO, 'endsAtISO') : event.endsAt;
+  // Same floor as createEvent, but only when we'd otherwise be left with no
+  // start at all — an explicit ISO from the date picker always wins.
+  if (!newStartsAt) {
+    const fallback = resolveInstantsFromLabels(
+      patch.dateLabel ?? event.dateLabel,
+      patch.timeLabel ?? event.timeLabel,
+      new Date().getFullYear(),
+    );
+    if (fallback) {
+      newStartsAt = fallback.startsAt;
+      newEndsAt = newEndsAt ?? fallback.endsAt;
+    }
+  }
+  const instantsRecovered = newStartsAt !== event.startsAt || newEndsAt !== event.endsAt;
 
   // Roster delta: grow with "Guest N" padding rows; shrink by removing trailing
   // padding rows only — the host and named guests are never deleted.
@@ -373,10 +399,8 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
         // Mirror the new primary stop; linkLocations refreshes coords/mapsUrl below.
         ...(newLocations?.length ? { location: newLocations[0]!.name } : {}),
         ...(patch.splitMode != null ? { splitMode: patch.splitMode } : {}),
-        ...(patch.startsAtISO !== undefined ? { startsAt: newStartsAt } : {}),
-        ...(patch.endsAtISO !== undefined ? { endsAt: newEndsAt } : {}),
-        // Keep the stored kind snapshot in step with the new times (serialization derives live).
-        ...(timesTouched ? { kind: deriveEventKind(newStartsAt, newEndsAt) } : {}),
+        ...(patch.startsAtISO !== undefined || instantsRecovered ? { startsAt: newStartsAt } : {}),
+        ...(patch.endsAtISO !== undefined || instantsRecovered ? { endsAt: newEndsAt } : {}),
         ...(newAttendeesCount !== undefined ? { attendeesCount: newAttendeesCount } : {}),
         ...(patch.budget !== undefined ? { budgetMinor: newBudgetMinor } : {}),
       },

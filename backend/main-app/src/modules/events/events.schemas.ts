@@ -26,7 +26,6 @@ export const createEventSchema = z.object({
   currency: z.string().optional(),
   splitMode: z.enum(['EVEN', 'BY_SHARE', 'BY_ITEM']).optional(),
   sourceMessage: z.string().nullable().optional(),
-  kind: z.enum(['PLANNED', 'ONGOING', 'PREVIOUS']).optional(),
 });
 
 export const updateEventSchema = z.object({

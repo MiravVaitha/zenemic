@@ -55,7 +55,6 @@ async function main() {
       title: "Mira's 28th Birthday",
       dateLabel: '07 Jun 2026',
       timeLabel: '7:30 PM',
-      kind: 'PLANNED',
       status: 'ACTIVE',
       location: 'Sister Ray, Hackney',
       locations: {

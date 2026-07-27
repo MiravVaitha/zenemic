@@ -49,9 +49,10 @@ model Event {
   dateLabel     String
   timeLabel     String
   // Machine timestamps when we can resolve them (drive reminders + calendar).
+  // Planned/Ongoing/Previous is NOT stored — it is derived from these at read
+  // time (see domain/eventKind.ts), so it stays correct as time passes.
   startsAt      DateTime?
   endsAt        DateTime?
-  kind          EventKind @default(PLANNED)
   status        EventStatus @default(DRAFT)
 
   location      String
@@ -84,7 +85,8 @@ model Event {
   photos       AlbumPhoto[]
   locations    EventLocation[]
 
-  @@index([userId, kind])
+  // Matches listEvents: filter by owner, newest first.
+  @@index([userId, startsAt])
 }
 
 // One stop for an event. An event has one or more, in `order`. The first stop
@@ -248,12 +250,6 @@ model ChatMessage {
 }
 
 // ──────────────────────────────────── Enums ─────────────────────────────────
-
-enum EventKind {
-  PLANNED
-  ONGOING
-  PREVIOUS
-}
 
 enum EventStatus {
   DRAFT      // extracted, not yet committed

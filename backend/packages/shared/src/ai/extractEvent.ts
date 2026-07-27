@@ -27,7 +27,10 @@ const EXTRACTED_EVENT_JSON_SCHEMA: Record<string, unknown> = {
     title: { type: 'string', description: 'Short event title, no date' },
     dateLabel: { type: 'string', description: 'Display date, e.g. "07 Jun 2026"' },
     timeLabel: { type: 'string', description: 'Display time, e.g. "7:30 PM" or "All day"' },
-    startsAtISO: { type: ['string', 'null'], description: 'ISO timestamp or null' },
+    startsAtISO: {
+      type: ['string', 'null'],
+      description: 'ISO timestamp; required whenever dateLabel names a real day (all-day = 00:00)',
+    },
     endsAtISO: { type: ['string', 'null'], description: 'ISO timestamp or null' },
     locations: {
       type: 'array',

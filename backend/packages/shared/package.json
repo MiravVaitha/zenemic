@@ -9,11 +9,13 @@
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts"
+    "prisma:generate": "node prisma/withEnv.js generate",
+    "prisma:push": "node prisma/withEnv.js db push",
+    "prisma:migrate": "node prisma/withEnv.js migrate dev",
+    "prisma:deploy": "node prisma/withEnv.js migrate deploy",
+    "prisma:studio": "node prisma/withEnv.js studio",
+    "seed": "tsx prisma/seed.ts",
+    "backfill:instants": "tsx prisma/backfillEventInstants.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

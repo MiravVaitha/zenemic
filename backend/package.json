@@ -19,6 +19,8 @@
     "start:keyboard": "npm run start -w @zenemic/keyboard",
     "typecheck": "npm run typecheck -w @zenemic/shared && npm run typecheck -w @zenemic/main-app && npm run typecheck -w @zenemic/keyboard",
     "prisma:generate": "npm run prisma:generate -w @zenemic/shared",
+    "prisma:push": "npm run prisma:push -w @zenemic/shared",
+    "backfill:instants": "npm run backfill:instants -w @zenemic/shared",
     "prisma:migrate": "npm run prisma:migrate -w @zenemic/shared",
     "prisma:deploy": "npm run prisma:deploy -w @zenemic/shared",
     "prisma:studio": "npm run prisma:studio -w @zenemic/shared",
