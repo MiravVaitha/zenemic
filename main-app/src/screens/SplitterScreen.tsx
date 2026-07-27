@@ -8,6 +8,7 @@ import { ZenText } from '../components/ZenText';
 import { ZenButton } from '../components/ZenButton';
 import { Spinner } from '../components/Spinner';
 import { api, ApiError } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import type { Split } from '../types/api';
 import { ScreenProps } from '../navigation/types';
 
@@ -32,7 +33,7 @@ export function SplitterScreen({ route, navigation }: ScreenProps<'Splitter'>) {
     api
       .getSplit(eventId)
       .then((s) => alive && (apply(s), setError(null)))
-      .catch((e: ApiError) => alive && setError(e.message))
+      .catch((e: unknown) => alive && setError(friendlyError(e, 'Couldn’t load the split.')))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -51,7 +52,7 @@ export function SplitterScreen({ route, navigation }: ScreenProps<'Splitter'>) {
     } catch (e) {
       const err = e as ApiError;
       if (err.notConfigured) setNotice('Payments aren’t set up yet (Stripe not configured).');
-      else setError(err.message);
+      else setError(friendlyError(e, 'Couldn’t update the split.'));
     } finally {
       setBusy(false);
     }

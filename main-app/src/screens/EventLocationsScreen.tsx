@@ -8,7 +8,8 @@ import { ZenText } from '../components/ZenText';
 import { ZenButton } from '../components/ZenButton';
 import { Spinner } from '../components/Spinner';
 import { IconChevron } from '../icons';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { config } from '../config';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import type { EventDetail, EventLocation } from '../types/api';
@@ -40,7 +41,7 @@ export function EventLocationsScreen({ navigation, route }: ScreenProps<'EventLo
         setDetail(d);
         setMapFailed(false);
       })
-      .catch((e: ApiError) => alive && setNotice(e.message))
+      .catch((e: unknown) => alive && setNotice(friendlyError(e, 'Couldn’t load the locations.')))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;

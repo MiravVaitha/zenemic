@@ -22,11 +22,14 @@ import type {
 export class ApiError extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string, message: string) {
+  /** Correlation id for a server-side failure — matches an `errorId` in the backend log. */
+  errorId?: string;
+  constructor(status: number, code: string, message: string, errorId?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.errorId = errorId;
   }
   /** True when an optional integration (Stripe/Google/S3) isn't configured. */
   get notConfigured() {
@@ -69,7 +72,12 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (json && json.error) || {};
-    throw new ApiError(res.status, err.code ?? 'error', err.message ?? `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status,
+      err.code ?? 'error',
+      err.message ?? `Request failed (${res.status})`,
+      err.errorId,
+    );
   }
   return json as T;
 }

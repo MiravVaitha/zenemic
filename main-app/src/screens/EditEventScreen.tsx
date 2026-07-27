@@ -14,7 +14,8 @@ import {
   type LocationDraft,
 } from '../components/LocationsEditor';
 import { Spinner } from '../components/Spinner';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { formatDateLabel, formatTimeLabel, parseLabelsToDate, splitModeLabel } from '../lib/format';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import type { EventDetail, SplitMode } from '../types/api';
@@ -68,7 +69,7 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
         setDateLabel(d.date);
         setTimeLabel(d.time);
       })
-      .catch((e: ApiError) => alive && setLoadError(e.message))
+      .catch((e: unknown) => alive && setLoadError(friendlyError(e, 'Couldn’t load this event.')))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -208,7 +209,7 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
       leaveGuardRef.current = true;
       navigation.goBack(); // EventDetail refetches on focus
     } catch (e) {
-      setError((e as ApiError).message);
+      setError(friendlyError(e, 'Couldn’t save your changes.'));
       setBusy(false);
     }
   };
@@ -232,7 +233,7 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
               // goBack would land on an EventDetail whose refetch 404s.
               navigation.reset({ index: 0, routes: [{ name: 'Events' }] });
             } catch (e) {
-              setError((e as ApiError).message);
+              setError(friendlyError(e, 'Couldn’t delete this event.'));
               setBusy(false);
             }
           },

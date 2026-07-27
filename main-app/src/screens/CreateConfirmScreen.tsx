@@ -13,7 +13,8 @@ import {
   type LocationDraft,
 } from '../components/LocationsEditor';
 import { Spinner } from '../components/Spinner';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { formatBudget, splitModeLabel } from '../lib/format';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import { useDraft } from '../navigation/DraftContext';
@@ -65,9 +66,9 @@ export function CreateConfirmScreen({ navigation }: ScreenProps<'CreateConfirm'>
         setDraft({ ...draft, extracted: ex, fields: next, locations: fromLocationDrafts(locs) });
         setExtracting(false);
       })
-      .catch((e: ApiError) => {
+      .catch((e: unknown) => {
         if (!alive) return;
-        setError(e.message);
+        setError(friendlyError(e, 'Couldn’t read those details. Try rewording them.'));
         setExtracting(false);
       });
     return () => {

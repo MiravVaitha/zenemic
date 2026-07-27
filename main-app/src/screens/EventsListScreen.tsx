@@ -8,7 +8,8 @@ import { ZenStatusBadge } from '../components/ZenStatusBadge';
 import { Spinner } from '../components/Spinner';
 import { IconArchive, IconChevron, IconClock, IconPlay, IconPlus } from '../icons';
 import { EventKind } from '../data/events';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import type { ApiEvent } from '../types/api';
 import { ScreenProps } from '../navigation/types';
 
@@ -38,7 +39,7 @@ export function EventsListScreen({ navigation }: ScreenProps<'Events'>) {
           setError(null);
         }
       })
-      .catch((e: ApiError) => alive && setError(e.message))
+      .catch((e: unknown) => alive && setError(friendlyError(e, 'Couldn’t load your events.')))
       .finally(() => {
         if (alive) {
           setLoading(false);

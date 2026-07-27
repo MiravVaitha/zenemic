@@ -6,6 +6,7 @@ import { ZenText } from './ZenText';
 import { Dot } from './Spinner';
 import { IconClose, IconPlus, IconSend } from '../icons';
 import { api, ApiError } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import type { ZenEvent } from '../data/events';
 
 const SUGGESTIONS = ['Move start +30 min', 'Draft a reminder', "Who hasn't paid?"];
@@ -14,10 +15,12 @@ const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 type Msg = { id?: string; role: 'user' | 'assistant'; content: string; imageUri?: string };
 type Attachment = { uri: string; base64: string; mediaType: string };
 
-function friendlyError(e: unknown): string {
-  const err = e as ApiError;
-  if (err?.code === 'network_error') return "Couldn't reach the assistant just now. Give it another go in a sec.";
-  return err?.message ?? 'Something went wrong. Try again.';
+/** The shared helper, with wording that suits a reply in the chat transcript. */
+function chatError(e: unknown): string {
+  if ((e as ApiError)?.code === 'network_error') {
+    return "Couldn't reach the assistant just now. Give it another go in a sec.";
+  }
+  return friendlyError(e);
 }
 
 export function EventChatPanel({ event, onGrow }: { event: ZenEvent; onGrow?: () => void }) {
@@ -81,7 +84,7 @@ export function EventChatPanel({ event, onGrow }: { event: ZenEvent; onGrow?: ()
       });
       setMessages((m) => [...m, { id: reply.id, role: 'assistant', content: reply.content }]);
     } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', content: friendlyError(e) }]);
+      setMessages((m) => [...m, { role: 'assistant', content: chatError(e) }]);
     } finally {
       setLoading(false);
     }

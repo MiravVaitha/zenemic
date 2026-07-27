@@ -10,6 +10,7 @@ import { ZenToggle } from '../components/ZenToggle';
 import { Spinner } from '../components/Spinner';
 import { useAuth } from '../lib/auth';
 import { api, ApiError } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { registerForPushNotificationsAsync } from '../lib/push';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import type { Profile } from '../types/api';
@@ -30,7 +31,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
     api
       .getMe()
       .then((p) => alive && setProfile(p))
-      .catch((e: ApiError) => alive && setNotice(e.message))
+      .catch((e: unknown) => alive && setNotice(friendlyError(e, 'Couldn’t load your profile.')))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -44,7 +45,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
     try {
       setProfile(await api.updateMe(body));
     } catch (e) {
-      setNotice((e as ApiError).message);
+      setNotice(friendlyError(e, 'Couldn’t save that change.'));
       load();
     }
   };
@@ -74,7 +75,11 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
       Linking.openURL(url);
     } catch (e) {
       const err = e as ApiError;
-      setNotice(err.notConfigured ? 'Google Calendar isn’t set up on the server yet.' : err.message);
+      setNotice(
+        err.notConfigured
+          ? 'Google Calendar isn’t set up on the server yet.'
+          : friendlyError(e, 'Couldn’t start the Google connection.'),
+      );
     }
   };
 

@@ -19,7 +19,8 @@ import {
   IconPin,
   IconSpark,
 } from '../icons';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import type { EventDetail } from '../types/api';
 import { ScreenProps } from '../navigation/types';
@@ -40,7 +41,7 @@ export function EventDetailScreen({ navigation, route }: ScreenProps<'EventDetai
     api
       .getEvent(base.id)
       .then((d) => alive && setDetail(d))
-      .catch((e: ApiError) => alive && setNotice(e.message))
+      .catch((e: unknown) => alive && setNotice(friendlyError(e, 'Couldn’t load this event.')))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;

@@ -25,6 +25,7 @@ import { ZenButton } from '../components/ZenButton';
 import { Spinner } from '../components/Spinner';
 import { IconClose, IconDownload, IconShare, IconTrash } from '../icons';
 import { api, ApiError } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import type { AlbumPhoto } from '../types/api';
 import { ScreenProps } from '../navigation/types';
 
@@ -73,7 +74,13 @@ export function AlbumScreen({ route, navigation }: ScreenProps<'Album'>) {
     api
       .getAlbum(eventId)
       .then((a) => alive && setPhotos(a.photos))
-      .catch((e: ApiError) => alive && setNotice(e.notConfigured ? 'Shared albums aren’t set up yet.' : e.message))
+      .catch(
+        (e: ApiError) =>
+          alive &&
+          setNotice(
+            e.notConfigured ? 'Shared albums aren’t set up yet.' : friendlyError(e, 'Couldn’t load the album.'),
+          ),
+      )
       .finally(() => alive && (setLoading(false), setRefreshing(false)));
     return () => {
       alive = false;
@@ -138,7 +145,7 @@ export function AlbumScreen({ route, navigation }: ScreenProps<'Album'>) {
             break;
           }
           if (err.status === 400) {
-            setNotice(err.message); // album full — stop early
+            setNotice(friendlyError(e, 'That album is full.')); // album full — stop early
             break;
           }
           throw e;
@@ -147,7 +154,7 @@ export function AlbumScreen({ route, navigation }: ScreenProps<'Album'>) {
         setProgress({ done, total: res.assets.length });
       }
     } catch (e) {
-      setNotice((e as ApiError).message ?? 'Some photos couldn’t be uploaded.');
+      setNotice(friendlyError(e, 'Some photos couldn’t be uploaded.'));
     } finally {
       setBusy(false);
       setProgress(null);
@@ -258,7 +265,7 @@ export function AlbumScreen({ route, navigation }: ScreenProps<'Album'>) {
           try {
             await api.deletePhoto(eventId, photo.id);
           } catch (e) {
-            setNotice((e as ApiError).message);
+            setNotice(friendlyError(e, 'Couldn’t delete that photo.'));
             load();
           }
         },

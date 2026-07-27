@@ -10,7 +10,8 @@ import { ZenInput } from '../components/ZenInput';
 import { ChartTimeline } from '../components/ChartTimeline';
 import { Spinner } from '../components/Spinner';
 import { IconClose, IconEdit, IconPlus } from '../icons';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import { STAGE_TAGS } from '../data/chart';
 import type { ApiChart, ApiStage } from '../types/api';
@@ -53,7 +54,7 @@ export function PlannerChartScreen({ navigation, route }: ScreenProps<'PlannerCh
           setError(null);
         }
       })
-      .catch((e: ApiError) => alive && setError(e.message))
+      .catch((e: unknown) => alive && setError(friendlyError(e, 'Couldn’t load the planner chart.')))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -134,7 +135,7 @@ export function PlannerChartScreen({ navigation, route }: ScreenProps<'PlannerCh
       setEditing(false);
       setShowErrors(false);
     } catch (e) {
-      setError((e as ApiError).message);
+      setError(friendlyError(e, 'Couldn’t save the planner chart.'));
     } finally {
       setBusy(false);
     }

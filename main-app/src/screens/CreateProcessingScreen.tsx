@@ -7,7 +7,8 @@ import { ZenText } from '../components/ZenText';
 import { ZenButton } from '../components/ZenButton';
 import { Spinner } from '../components/Spinner';
 import { IconCheck } from '../icons';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { friendlyError } from '../lib/errors';
 import { splitModeEnum } from '../lib/format';
 import { useDraft } from '../navigation/DraftContext';
 import type { CreateEventInput } from '../types/api';
@@ -63,7 +64,7 @@ export function CreateProcessingScreen({ navigation }: ScreenProps<'CreateProces
         setDraft({ ...draft, created: event });
         setReady(true);
       })
-      .catch((e: ApiError) => setError(e.message));
+      .catch((e: unknown) => setError(friendlyError(e, 'Couldn’t create your event.')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
