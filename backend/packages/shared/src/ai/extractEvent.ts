@@ -5,13 +5,17 @@ import { env } from '../config/env';
 
 export const ExtractedEventSchema = z.object({
   title: z.string(),
-  dateLabel: z.string(),
-  timeLabel: z.string(),
+  // date/time/locations are nullable so the model can say "the message didn't
+  // say" instead of inventing one. The confirm screen turns a null into a
+  // required field the host fills in — see EVENT_EXTRACTION_SYSTEM.
+  dateLabel: z.string().nullable(),
+  timeLabel: z.string().nullable(),
   startsAtISO: z.string().nullable(),
   endsAtISO: z.string().nullable(),
   locations: z
     .array(z.object({ name: z.string(), query: z.string(), label: z.string().nullable() }))
-    .min(1),
+    .min(1)
+    .nullable(),
   attendees: z.number().int().min(1),
   guests: z.array(z.string()),
   budgetMajor: z.number().nullable(),
@@ -25,17 +29,24 @@ const EXTRACTED_EVENT_JSON_SCHEMA: Record<string, unknown> = {
   type: 'object',
   properties: {
     title: { type: 'string', description: 'Short event title, no date' },
-    dateLabel: { type: 'string', description: 'Display date, e.g. "07 Jun 2026"' },
-    timeLabel: { type: 'string', description: 'Display time, e.g. "7:30 PM" or "All day"' },
+    dateLabel: {
+      type: ['string', 'null'],
+      description: 'Display date, e.g. "07 Jun 2026" — null if the message names no date',
+    },
+    timeLabel: {
+      type: ['string', 'null'],
+      description: 'Display time, e.g. "7:30 PM" or "All day" — null if the message names no time',
+    },
     startsAtISO: {
       type: ['string', 'null'],
       description: 'ISO timestamp; required whenever dateLabel names a real day (all-day = 00:00)',
     },
     endsAtISO: { type: ['string', 'null'], description: 'ISO timestamp or null' },
     locations: {
-      type: 'array',
+      type: ['array', 'null'],
       minItems: 1,
-      description: 'Ordered stops; the first is the primary venue. Usually just one.',
+      description:
+        'Ordered stops; the first is the primary venue. Usually just one. null if the message names no place at all — never invent a venue.',
       items: {
         type: 'object',
         properties: {

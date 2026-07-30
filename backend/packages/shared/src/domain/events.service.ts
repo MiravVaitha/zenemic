@@ -1,13 +1,19 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { notFound, forbidden, conflict, badRequest } from '../lib/errors';
+import { notFound, forbidden, conflict, badRequest, notConfigured } from '../lib/errors';
 import { parseBudgetToMinor } from '../lib/money';
 import { extractEvent, generateChart, type ExtractedEvent } from '../ai';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 import * as calendar from '../integrations/googleCalendar';
 import * as storage from '../integrations/storage';
-import { generateResources, linkLocations, type ResourceReport } from './resources.service';
+import {
+  generateResources,
+  linkLocations,
+  syncCalendar,
+  calendarEnd,
+  type ResourceReport,
+} from './resources.service';
 import { createOrUpdateSplit } from './splitter.service';
 import {
   serializeEvent,
@@ -30,6 +36,18 @@ const detailInclude = {
   receipts: { include: { items: true }, orderBy: { createdAt: 'desc' } },
   locations: { orderBy: { order: 'asc' } },
 } satisfies Prisma.EventInclude;
+
+/**
+ * Parse an incoming ISO instant, rejecting unparseable values. Shared by create
+ * and update so both agree: an `Invalid Date` is truthy, so without this guard a
+ * bad string sails past `if (!startsAt)` and dies as an opaque 500 in Prisma.
+ */
+function parseISO(iso: string | null | undefined, field: string): Date | null {
+  if (iso == null) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) throw badRequest(`Invalid ${field}`);
+  return d;
+}
 
 /** A single stop as accepted from the create/edit flows (query defaults to name). */
 export interface LocationInput {
@@ -72,8 +90,8 @@ export async function createEvent(
   const user = await ensureProfile(identity); // create the profile row on first use
   const userId = user.id;
   const currency = (input.currency ?? env.STRIPE_CURRENCY).toLowerCase();
-  let startsAt = input.startsAtISO ? new Date(input.startsAtISO) : null;
-  let endsAt = input.endsAtISO ? new Date(input.endsAtISO) : null;
+  let startsAt = parseISO(input.startsAtISO, 'startsAtISO');
+  let endsAt = parseISO(input.endsAtISO, 'endsAtISO');
   // The AI may resolve a date label but no instant (classically "All day"). Without
   // a start, deriveEventKind pins the event to Planned forever — recover one.
   if (!startsAt) {
@@ -217,6 +235,24 @@ export async function regenerateChart(userId: string, eventId: string) {
   return serializeChart(event, stages);
 }
 
+/**
+ * Add an existing event to Google Calendar — the EventDetail "not connected"
+ * row. Needed because calendar sync used to happen only at create time, so
+ * connecting Google afterwards left every earlier event with no entry and no way
+ * to get one. Idempotent: an event that already has an entry just succeeds.
+ */
+export async function syncEventCalendar(userId: string, eventId: string) {
+  await assertOwner(userId, eventId);
+  const outcome = await syncCalendar(eventId);
+  if (outcome.status !== 'created') {
+    // The skip codes are different problems and the app says different things
+    // about each, so don't flatten them into one error.
+    if (outcome.code === 'google_not_configured') throw notConfigured('Google Calendar');
+    throw badRequest(outcome.reason ?? 'Couldn’t add this to Google Calendar.');
+  }
+  return getEvent(userId, eventId);
+}
+
 /** Tick a planner-chart stage off (or on) — the EventDetail/PlannerChart checkboxes. */
 export async function setStageDone(userId: string, eventId: string, stageId: string, done: boolean) {
   await assertOwner(userId, eventId);
@@ -311,12 +347,6 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
   }
 
   // Timestamps: a present key means "set" (null clears); reject unparseable values.
-  const parseISO = (iso: string | null, field: string) => {
-    if (iso == null) return null;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) throw badRequest(`Invalid ${field}`);
-    return d;
-  };
   const timesTouched = patch.startsAtISO !== undefined || patch.endsAtISO !== undefined;
   let newStartsAt =
     patch.startsAtISO !== undefined ? parseISO(patch.startsAtISO, 'startsAtISO') : event.startsAt;
@@ -428,36 +458,27 @@ export async function updateEvent(userId: string, eventId: string, patch: Update
         where: { id: eventId },
         include: { user: true, attendees: true },
       });
-      if (calendar.googleCalendarEnabled && full.user.googleRefreshToken) {
-        if (full.calendarEventId) {
+      if (full.calendarEventId) {
+        if (calendar.googleCalendarEnabled && full.user.googleRefreshToken) {
           await calendar.updateCalendarEvent({
             refreshToken: full.user.googleRefreshToken,
             calendarId: full.user.googleCalendarId ?? undefined,
             eventId: full.calendarEventId,
             ...(changedTitle ? { summary: full.title } : {}),
             ...(changedLocation ? { location: full.location } : {}),
-            // Never null-out calendar times — only push when both are set.
-            ...(timesTouched && full.startsAt && full.endsAt
-              ? { start: full.startsAt, end: full.endsAt }
+            // Never null-out calendar times; an absent end is assumed, not
+            // skipped, or a time edit would never reach the calendar entry.
+            ...(timesTouched && full.startsAt
+              ? { start: full.startsAt, end: calendarEnd(full.startsAt, full.endsAt) }
               : {}),
           });
-        } else if (timesTouched && full.startsAt && full.endsAt) {
-          // The edit added real times to an event that never got a calendar entry.
-          const created = await calendar.createCalendarEvent({
-            refreshToken: full.user.googleRefreshToken,
-            calendarId: full.user.googleCalendarId ?? undefined,
-            summary: full.title,
-            description: full.sourceMessage ?? undefined,
-            location: full.location,
-            start: full.startsAt,
-            end: full.endsAt,
-            attendeeEmails: full.attendees.map((a) => a.email).filter((e): e is string => Boolean(e)),
-          });
-          await prisma.event.update({
-            where: { id: eventId },
-            data: { calendarEventId: created.id, calendarHtmlLink: created.htmlLink },
-          });
         }
+      } else if (timesTouched) {
+        // No entry yet, and the edit may have supplied the start that was
+        // missing. Only on a time edit — a title change shouldn't silently put
+        // an un-synced event on the calendar; that's what POST /:id/calendar is
+        // for, surfaced as the "tap to sync" row on EventDetail.
+        await syncCalendar(eventId);
       }
     } catch (err) {
       logger.warn({ err, eventId }, 'calendar re-sync failed');

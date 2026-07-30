@@ -35,6 +35,10 @@ export function friendlyError(e: unknown, fallback: string = DEFAULT): string {
   switch (str(err.code)) {
     case 'network_error':
       return "Couldn't reach Zenemic. Check your connection and try again.";
+    case 'timeout':
+      return 'That took too long to respond. Try again.';
+    case 'session_timeout':
+      return 'Timed out reading your session. Log out and back in, then try again.';
     case 'service_unavailable':
       return withId('Zenemic is having trouble right now. Try again in a moment.');
     case 'unauthorized':

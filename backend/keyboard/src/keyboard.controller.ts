@@ -2,6 +2,7 @@ import {
   prisma,
   notFound,
   forbidden,
+  badRequest,
   toMajor,
   logger,
   sendSplitRequests,
@@ -22,13 +23,28 @@ import {
  */
 export async function generate(identity: SupabaseIdentity, prompt: string) {
   const draft = await events.extractDraft(prompt);
+
+  // The AI is allowed to return null when the prompt didn't say (see
+  // EVENT_EXTRACTION_SYSTEM). The main app resolves those on its confirm screen;
+  // the keyboard is one-shot with nowhere to ask, so say what's missing rather
+  // than invent it.
+  const { dateLabel, timeLabel, locations } = draft;
+  if (!dateLabel || !timeLabel || !locations?.length) {
+    const missing = [
+      dateLabel ? null : 'when',
+      timeLabel ? null : 'what time',
+      locations?.length ? null : 'where',
+    ].filter((m): m is string => m !== null);
+    throw badRequest(`Add ${missing.join(' and ')} to that and I'll set it up.`);
+  }
+
   const created = await events.createEvent(identity, {
     title: draft.title,
-    dateLabel: draft.dateLabel,
-    timeLabel: draft.timeLabel,
+    dateLabel,
+    timeLabel,
     startsAtISO: draft.startsAtISO,
     endsAtISO: draft.endsAtISO,
-    locations: draft.locations,
+    locations,
     attendees: draft.attendees,
     guests: draft.guests,
     budget: draft.budgetMajor,

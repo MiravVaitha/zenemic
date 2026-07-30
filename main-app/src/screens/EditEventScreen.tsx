@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { FONTS, RADIUS, useTheme } from '../theme';
+import { Alert, ScrollView, View } from 'react-native';
+import { RADIUS, useTheme } from '../theme';
 import { ZenChrome } from '../components/ZenChrome';
 import { Section, Anchor } from '../components/Section';
 import { ZenText } from '../components/ZenText';
 import { ZenButton } from '../components/ZenButton';
 import { EditableRow } from '../components/EditableRow';
+import {
+  useDateTimePicker,
+  DateTimePickerSheet,
+  type WhenValue,
+} from '../components/DateTimePickerSheet';
 import {
   LocationsEditor,
   toLocationDrafts,
@@ -16,13 +20,12 @@ import {
 import { Spinner } from '../components/Spinner';
 import { api } from '../lib/api';
 import { friendlyError } from '../lib/errors';
-import { formatDateLabel, formatTimeLabel, parseLabelsToDate, splitModeLabel } from '../lib/format';
+import { splitModeLabel } from '../lib/format';
 import { useKeyboardInset } from '../lib/useKeyboardInset';
 import type { EventDetail, SplitMode } from '../types/api';
 import { ScreenProps } from '../navigation/types';
 
 const SPLIT_CYCLE: SplitMode[] = ['EVEN', 'BY_SHARE', 'BY_ITEM'];
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>) {
   const t = useTheme();
@@ -40,17 +43,18 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
   const [attendees, setAttendees] = useState('');
   const [budget, setBudget] = useState('');
   const [splitMode, setSplitMode] = useState<SplitMode>('EVEN');
-  const [startsAt, setStartsAt] = useState<Date | null>(null);
-  const [endsAt, setEndsAt] = useState<Date | null>(null);
-  const [dateLabel, setDateLabel] = useState('');
-  const [timeLabel, setTimeLabel] = useState('');
+  const [when, setWhen] = useState<WhenValue>({
+    dateLabel: '',
+    timeLabel: '',
+    startsAt: null,
+    endsAt: null,
+  });
 
   const [busy, setBusy] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [iosPicker, setIosPicker] = useState<'date' | 'time' | null>(null);
-  // iOS commits on "Done"; hold the in-progress wheel value so Cancel can drop it.
-  const [pickerTemp, setPickerTemp] = useState<Date>(() => new Date());
+
+  const { openPicker, sheetProps } = useDateTimePicker(when, setWhen);
 
   useEffect(() => {
     let alive = true;
@@ -64,10 +68,12 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
         setAttendees(String(d.attendees.length));
         setBudget(d.budget ?? '');
         setSplitMode(d.splitMode);
-        setStartsAt(d.startsAt ? new Date(d.startsAt) : null);
-        setEndsAt(d.endsAt ? new Date(d.endsAt) : null);
-        setDateLabel(d.date);
-        setTimeLabel(d.time);
+        setWhen({
+          dateLabel: d.date,
+          timeLabel: d.time,
+          startsAt: d.startsAt ? new Date(d.startsAt) : null,
+          endsAt: d.endsAt ? new Date(d.endsAt) : null,
+        });
       })
       .catch((e: unknown) => alive && setLoadError(friendlyError(e, 'Couldn’t load this event.')))
       .finally(() => alive && setLoading(false));
@@ -87,8 +93,8 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
   const cleanLocations = fromLocationDrafts(locations);
   const invalidTitle = !title.trim();
   const invalidLocation = cleanLocations.length === 0;
-  const invalidDate = !dateLabel.trim();
-  const invalidTime = !timeLabel.trim();
+  const invalidDate = !when.dateLabel.trim();
+  const invalidTime = !when.timeLabel.trim();
   const invalidAttendees = !Number.isFinite(attendeeCount) || attendeeCount < 1;
   const invalidBudget = budget.trim() !== '' && !/\d/.test(budget);
   const hasInvalid =
@@ -101,12 +107,12 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
     if (title.trim() !== detail.title) patch.title = title.trim();
     const prevLocs = detail.locations.map((l) => ({ name: l.name, label: l.label, query: l.query }));
     if (JSON.stringify(cleanLocations) !== JSON.stringify(prevLocs)) patch.locations = cleanLocations;
-    if (dateLabel.trim() !== detail.date) patch.dateLabel = dateLabel.trim();
-    if (timeLabel.trim() !== detail.time) patch.timeLabel = timeLabel.trim();
-    const startsISO = startsAt?.toISOString() ?? null;
+    if (when.dateLabel.trim() !== detail.date) patch.dateLabel = when.dateLabel.trim();
+    if (when.timeLabel.trim() !== detail.time) patch.timeLabel = when.timeLabel.trim();
+    const startsISO = when.startsAt?.toISOString() ?? null;
     if (startsISO !== detail.startsAt) {
       patch.startsAtISO = startsISO;
-      patch.endsAtISO = endsAt?.toISOString() ?? null;
+      patch.endsAtISO = when.endsAt?.toISOString() ?? null;
     }
     if (Number.isFinite(attendeeCount) && attendeeCount !== detail.attendees.length) {
       patch.attendees = attendeeCount;
@@ -137,51 +143,6 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
   useEffect(() => {
     navigation.setOptions({ gestureEnabled: !dirty });
   }, [navigation, dirty]);
-
-  // Open the picker at whatever the row currently shows (parsed from the
-  // labels), so it never jumps to an unrelated default or a tz-shifted instant.
-  const baseDate = () => {
-    const parsed = parseLabelsToDate(dateLabel, timeLabel);
-    if (parsed) return parsed;
-    if (startsAt) return startsAt;
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(19, 0, 0, 0); // nothing to parse — start from tomorrow evening
-    return d;
-  };
-
-  const applyStart = (d: Date) => {
-    const durationMs =
-      startsAt && endsAt && endsAt.getTime() > startsAt.getTime()
-        ? endsAt.getTime() - startsAt.getTime()
-        : TWO_HOURS_MS;
-    setStartsAt(d);
-    setEndsAt(new Date(d.getTime() + durationMs)); // preserve the event's duration
-    setDateLabel(formatDateLabel(d));
-    setTimeLabel(formatTimeLabel(d));
-  };
-
-  const openPicker = (mode: 'date' | 'time') => {
-    const base = baseDate();
-    if (Platform.OS === 'android') {
-      // System dialog; date mode keeps the time-of-day from `value`, time mode keeps the date.
-      DateTimePickerAndroid.open({
-        value: base,
-        mode,
-        onChange: (event, d) => {
-          if (event.type === 'set' && d) applyStart(d);
-        },
-      });
-    } else {
-      setPickerTemp(base);
-      setIosPicker(mode);
-    }
-  };
-
-  const confirmIosPicker = () => {
-    applyStart(pickerTemp);
-    setIosPicker(null);
-  };
 
   const cycleSplit = () =>
     setSplitMode((m) => SPLIT_CYCLE[(SPLIT_CYCLE.indexOf(m) + 1) % SPLIT_CYCLE.length]);
@@ -292,13 +253,15 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
                 />
                 <EditableRow
                   label="Date"
-                  value={dateLabel}
+                  value={when.dateLabel}
+                  placeholder="Tap to pick a date"
                   onPress={() => openPicker('date')}
                   invalid={showErrors && invalidDate}
                 />
                 <EditableRow
                   label="Time"
-                  value={timeLabel}
+                  value={when.timeLabel}
+                  placeholder="Tap to pick a time"
                   onPress={() => openPicker('time')}
                   invalid={showErrors && invalidTime}
                 />
@@ -371,63 +334,7 @@ export function EditEventScreen({ navigation, route }: ScreenProps<'EditEvent'>)
             </View>
           </Anchor>
 
-          {/* iOS: an overlay sheet (Android uses the self-dismissing system dialog).
-              Overlaying instead of inlining keeps the Delete button in place. */}
-          <Modal
-            visible={iosPicker !== null}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setIosPicker(null)}
-          >
-            <Pressable
-              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
-              onPress={() => setIosPicker(null)}
-            >
-              <Pressable
-                onPress={() => {}}
-                style={{
-                  backgroundColor: t.surface,
-                  borderTopLeftRadius: RADIUS.lg,
-                  borderTopRightRadius: RADIUS.lg,
-                  paddingBottom: 12,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: t.hairline,
-                  }}
-                >
-                  <Pressable onPress={() => setIosPicker(null)} hitSlop={8}>
-                    <ZenText style={{ fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 1.2, color: t.fg3 }}>
-                      CANCEL
-                    </ZenText>
-                  </Pressable>
-                  <ZenText variant="eyebrow" tone="fg3">
-                    {iosPicker === 'time' ? 'PICK TIME' : 'PICK DATE'}
-                  </ZenText>
-                  <Pressable onPress={confirmIosPicker} hitSlop={8}>
-                    <ZenText style={{ fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 1.2, color: t.accent }}>
-                      DONE
-                    </ZenText>
-                  </Pressable>
-                </View>
-                <DateTimePicker
-                  value={pickerTemp}
-                  mode={iosPicker === 'time' ? 'time' : 'date'}
-                  display="spinner"
-                  themeVariant={t.mode}
-                  onChange={(_e, d) => d && setPickerTemp(d)}
-                  style={{ backgroundColor: t.surface }}
-                />
-              </Pressable>
-            </Pressable>
-          </Modal>
+          <DateTimePickerSheet {...sheetProps} />
         </>
       )}
     </View>

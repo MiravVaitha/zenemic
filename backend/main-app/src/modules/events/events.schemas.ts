@@ -13,12 +13,15 @@ export const extractDraftSchema = z.object({
   timezoneOffset: z.string().optional(),
 });
 
+// A *draft* may have a null date/time/location — the AI is allowed to say it
+// doesn't know (see EVENT_EXTRACTION_SYSTEM). A *created event* may not: the
+// confirm screen is where the host resolves those, and the columns are NOT NULL.
 export const createEventSchema = z.object({
   title: z.string().min(1),
   dateLabel: z.string().min(1),
   timeLabel: z.string().min(1),
-  startsAtISO: z.string().nullable().optional(),
-  endsAtISO: z.string().nullable().optional(),
+  startsAtISO: z.string().datetime({ offset: true }).nullable().optional(),
+  endsAtISO: z.string().datetime({ offset: true }).nullable().optional(),
   locations: z.array(locationInput).min(1).max(25),
   attendees: z.number().int().min(1),
   guests: z.array(z.string()).optional(),

@@ -1,5 +1,5 @@
 import type { ZenEvent } from '../data/events';
-import type { ApiEvent, ExtractedDraft } from '../types/api';
+import type { ApiEvent, ExtractedDraft, ResourceReport } from '../types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 /** An editable stop in the create flow (seeded from AI extraction). */
@@ -17,10 +17,19 @@ export type Draft = {
     budget: string;
     splitMode: string;
   };
+  /**
+   * The confirmed instants behind `fields.date`/`fields.time`. Kept next to the
+   * labels because the two must be submitted together — a corrected label with a
+   * stale instant shows one date and calendars another.
+   */
+  startsAt?: Date | null;
+  endsAt?: Date | null;
   /** Ordered stops, edited in the confirm step's locations editor. */
   locations?: DraftLocation[];
   /** The event created by POST /events, handed to CreateSuccess → EventDetail. */
   created?: ApiEvent;
+  /** What POST /events actually managed to set up — drives Processing/Success. */
+  report?: ResourceReport;
 };
 
 export type RootStackParamList = {

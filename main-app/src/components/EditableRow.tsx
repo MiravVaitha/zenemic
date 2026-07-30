@@ -17,6 +17,8 @@ export interface EditableRowProps {
   locked?: boolean;
   lockedMeta?: string;
   keyboardType?: KeyboardTypeOptions;
+  /** Shown greyed when `value` is empty — e.g. a field the AI couldn't fill in. */
+  placeholder?: string;
 }
 
 /** Tap-to-edit labeled row (the "Look right?" / EditEvent card rows). */
@@ -30,6 +32,7 @@ export function EditableRow({
   locked = false,
   lockedMeta = 'LOCKED · IN SPLITTER',
   keyboardType,
+  placeholder,
 }: EditableRowProps) {
   const t = useTheme();
   const [editing, setEditing] = useState(false);
@@ -88,6 +91,8 @@ export function EditableRow({
           onBlur={commit}
           onSubmitEditing={commit}
           keyboardType={keyboardType}
+          placeholder={placeholder}
+          placeholderTextColor={t.fg3}
           style={{
             flex: 1,
             paddingHorizontal: 10,
@@ -102,7 +107,9 @@ export function EditableRow({
         />
       ) : (
         <>
-          <ZenText style={{ flex: 1, fontSize: 14.5, color: t.fg }}>{value}</ZenText>
+          <ZenText style={{ flex: 1, fontSize: 14.5, color: value ? t.fg : t.fg3 }}>
+            {value || placeholder || ''}
+          </ZenText>
           <ZenText
             style={{ fontFamily: FONTS.mono, fontSize: 10, letterSpacing: 1.2, color: t.fg3 }}
           >

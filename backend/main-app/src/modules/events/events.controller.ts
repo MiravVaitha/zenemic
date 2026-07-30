@@ -30,6 +30,10 @@ export async function regenerateChart(req: Request, res: Response) {
   res.json(await events.regenerateChart(requireUserId(req), req.params.id));
 }
 
+export async function syncCalendar(req: Request, res: Response) {
+  res.json(await events.syncEventCalendar(requireUserId(req), req.params.id));
+}
+
 export async function editChart(req: Request, res: Response) {
   res.json(await events.replaceChart(requireUserId(req), req.params.id, req.body.stages));
 }

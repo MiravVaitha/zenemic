@@ -39,6 +39,10 @@ eventsRouter.patch(
 );
 eventsRouter.delete('/:id', validate({ params: eventIdParam }), asyncHandler(ctrl.remove));
 
+// Calendar. Sync happens automatically at create time; this is for the events
+// that predate the user connecting Google (nothing backfills them otherwise).
+eventsRouter.post('/:id/calendar', validate({ params: eventIdParam }), asyncHandler(ctrl.syncCalendar));
+
 // Planner chart.
 eventsRouter.get('/:id/chart', validate({ params: eventIdParam }), asyncHandler(ctrl.getChart));
 eventsRouter.post('/:id/chart', validate({ params: eventIdParam }), asyncHandler(ctrl.regenerateChart));

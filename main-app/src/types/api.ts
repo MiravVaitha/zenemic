@@ -110,20 +110,51 @@ export interface EventDetail extends Omit<ApiEvent, 'attendees'> {
   albumCount: number;
 }
 
-/** AI extraction result (POST /events/draft). */
+/**
+ * AI extraction result (POST /events/draft). The nulls are load-bearing: the
+ * model is told to return null rather than invent a date or a venue the host
+ * never mentioned, so CreateConfirm can ask instead of presenting a guess as
+ * fact. A created event always has all three — the confirm screen is the bridge.
+ */
 export interface ExtractedDraft {
   title: string;
-  dateLabel: string;
-  timeLabel: string;
+  dateLabel: string | null;
+  timeLabel: string | null;
   startsAtISO: string | null;
   endsAtISO: string | null;
-  locations: { name: string; query: string; label: string | null }[];
+  locations: { name: string; query: string; label: string | null }[] | null;
   attendees: number;
   guests: string[];
   budgetMajor: number | null;
   currency: string;
   splitMode: SplitMode;
 }
+
+/** Which of the five automated resources a resource step actually produced. */
+export type ResourceCode =
+  | 'google_not_configured'
+  | 'google_not_connected'
+  | 'no_start_time'
+  | 'no_location'
+  | 'storage_not_configured'
+  | 'no_budget'
+  | 'no_one_to_split_with'
+  | 'error';
+
+export interface ResourceOutcome {
+  status: 'created' | 'skipped' | 'failed';
+  code?: ResourceCode;
+  /** Written for the host — safe to render directly, unlike an error message. */
+  reason?: string;
+}
+
+export type ResourceKey = 'chart' | 'calendar' | 'splitter' | 'locations' | 'album';
+
+/**
+ * What `POST /events` really did, per resource. Distinct from `ApiEvent.resources`
+ * (the persisted links) — this one says whether each step ran, and why not.
+ */
+export type ResourceReport = Record<ResourceKey, ResourceOutcome>;
 
 /** Request body for POST /events. */
 export interface CreateEventInput {

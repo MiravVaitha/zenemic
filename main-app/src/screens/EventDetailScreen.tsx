@@ -35,6 +35,7 @@ export function EventDetailScreen({ navigation, route }: ScreenProps<'EventDetai
   const [detail, setDetail] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const load = useCallback(() => {
     let alive = true;
@@ -74,11 +75,32 @@ export function EventDetailScreen({ navigation, route }: ScreenProps<'EventDetai
   };
 
   const calendar = detail?.resources.calendar ?? null;
+  const mapsUrl = locs[0]?.mapsUrl ?? detail?.resources.mapsUrl ?? null;
+
+  /**
+   * Add this event to Google Calendar. Sync otherwise only happens at create
+   * time, so events made before the user connected Google have no other route in.
+   */
+  const syncCalendar = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setNotice(null);
+    try {
+      setDetail(await api.syncCalendar(base.id));
+    } catch (e) {
+      setNotice(friendlyError(e, 'Couldn’t add this to Google Calendar.'));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // Metas state what's actually there. A missing resource says so rather than
+  // rendering a plausible-looking placeholder ("— · 12 WAYS" for no split at all).
   const resources: { id: ResourceId; label: string; meta: string; icon: React.ReactNode; onPress: () => void }[] = [
-    { id: 'chart', label: 'Event planner chart', meta: `${stages.length || '—'} STAGES`, icon: <IconChart color={t.fg2} />, onPress: () => navigation.navigate('PlannerChart', { event: base }) },
-    { id: 'cal', label: 'Calendar event', meta: calendar ? 'GOOGLE · SYNCED' : 'NOT CONNECTED', icon: <IconCalendar color={t.fg2} />, onPress: () => openUrl(calendar?.htmlLink, 'Connect Google Calendar in Settings to sync this event.') },
-    { id: 'split', label: 'Payment splitter', meta: `${ev.budget ?? '—'} · ${headcount} WAYS`, icon: <IconMoney color={t.fg2} />, onPress: () => navigation.navigate('Splitter', { eventId: base.id, title: ev.title }) },
-    { id: 'loc', label: 'Linked locations', meta: locs.length > 1 ? `${locs.length} STOPS` : 'MAPS', icon: <IconPin color={t.fg2} />, onPress: () => (locs.length > 1 ? navigation.navigate('EventLocations', { event: base }) : openUrl(locs[0]?.mapsUrl ?? detail?.resources.mapsUrl, 'No location link for this event yet.')) },
+    { id: 'chart', label: 'Event planner chart', meta: stages.length ? `${stages.length} STAGES` : 'TAP TO BUILD', icon: <IconChart color={t.fg2} />, onPress: () => navigation.navigate('PlannerChart', { event: base }) },
+    { id: 'cal', label: 'Calendar event', meta: calendar ? 'GOOGLE · SYNCED' : syncing ? 'SYNCING…' : 'TAP TO SYNC', icon: <IconCalendar color={t.fg2} />, onPress: () => (calendar ? openUrl(calendar.htmlLink, 'No calendar link for this event.') : syncCalendar()) },
+    { id: 'split', label: 'Payment splitter', meta: detail?.split ? `${ev.budget ?? '—'} · ${detail.split.shares.length} WAYS` : ev.budget ? 'NOT SET UP' : 'NO BUDGET SET', icon: <IconMoney color={t.fg2} />, onPress: () => navigation.navigate('Splitter', { eventId: base.id, title: ev.title }) },
+    { id: 'loc', label: 'Linked locations', meta: locs.length > 1 ? `${locs.length} STOPS` : mapsUrl ? 'MAPS' : 'NO LINK YET', icon: <IconPin color={t.fg2} />, onPress: () => (locs.length > 1 ? navigation.navigate('EventLocations', { event: base }) : openUrl(mapsUrl, 'No location link for this event yet — add one in Edit event.')) },
     { id: 'pix', label: 'Shared photo album', meta: detail ? `${detail.albumCount} ${detail.albumCount === 1 ? 'PHOTO' : 'PHOTOS'}` : 'OPEN', icon: <IconPhotos color={t.fg2} />, onPress: () => navigation.navigate('Album', { eventId: base.id, title: ev.title }) },
   ];
 
