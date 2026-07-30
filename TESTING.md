@@ -1,5 +1,10 @@
 # Testing Zenemic locally
 
+> This file is the **runbook** — how to start the stack and where to point the app.
+> **What to actually verify** lives in `LAUNCH.md`: a "Test before ticking off" block on every
+> phase, Phase 0 for features that are built but have never been run, and Phase 8 for the full
+> pre-submission pass. Bugs found go in that file's *Bugs found in testing* inbox.
+
 > **Last verified: 2026-06-25** — backend boots, DB schema applied, and `/api/health`
 > reports every integration configured. The Expo app is wired to the **main-app**
 > backend. The **keyboard** prototype is **not yet wired** to its backend — see

@@ -15,6 +15,13 @@ keyboard prototype is not yet):
 - **`keyboard/`** — an HTML/JSX **design prototype** of the custom-keyboard UX (reference only).
 - `.design-pkg/` — git-ignored design handoff bundle (the source the UI is built from).
 
+**`LAUNCH.md` at the repo root is the plan of record** — the phased, dependency-ordered list of what
+remains before a Google Play (then App Store) release, with each item cited to the code. Read it
+before starting feature work so a task lands in the right order; the phases exist because several
+items block each other (attendee identity gates the splitter, invites and calendar guests).
+**After any session that fixes a bug, ships a feature, or uncovers a new problem, propose what to
+add to or remove from it** — the list going stale is the failure mode it exists to prevent.
+
 ### ⚠️ Naming trap — read this first
 There are **two `main-app` and two `keyboard` directories** that mean different things:
 
