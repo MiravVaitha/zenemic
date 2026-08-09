@@ -1,0 +1,55 @@
+# Stops Supabase pausing the free-plan project.
+#
+# Supabase pauses after 7 days without user database activity. This queries
+# Postgres directly once a day — it does not touch the Zenemic backend, which
+# runs only on a dev machine and whose /health routes never hit the database.
+#
+# Requires one repository secret: SUPABASE_DIRECT_URL (the repo-root .env.local
+# DIRECT_URL value). It must use the *pooler* host — aws-0-<region>.pooler.
+# supabase.com — because db.<ref>.supabase.co is IPv6-only and GitHub's runners
+# are IPv4-only.
+
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Daily, deliberately off-the-hour: GitHub delays and sometimes drops
+    # scheduled runs under peak load, and :00 is the worst offender. Daily leaves
+    # 7x margin against Supabase's 7-day window.
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_heartbeat:
+        description: 'Force the heartbeat commit (to test the 60-day path)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # the heartbeat step pushes a commit; the ping alone needs nothing
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5 # a hung pooler connection must not hold a runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ping Supabase Postgres
+        env:
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        # Node is preinstalled on ubuntu-latest, so no setup-node step. psql is
+        # avoided on purpose — it is not reliably preinstalled and would mean an
+        # apt-get on every run. node_modules/ is already git-ignored, so this
+        # leaves the working tree clean for the heartbeat step.
+        run: |
+          npm install pg --no-save --silent
+          node .github/scripts/supabase-ping.mjs
+
+      - name: Heartbeat commit if the repo has gone quiet
+        env:
+          FORCE: ${{ inputs.force_heartbeat }}
+        run: bash .github/scripts/keepalive-heartbeat.sh

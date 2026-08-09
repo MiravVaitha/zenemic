@@ -251,6 +251,17 @@ host instead of being swallowed · check spam placement.
       classification in the Cloud Console before paying for an audit you may not need.
 - [ ] **API billing review** before launch: Anthropic, Google Maps, Stripe (currently sandbox),
       Resend. Set budget alerts.
+- [ ] **The backend is not hosted anywhere — nothing works for a real user until it is.** There is no
+      `Dockerfile`, `render.yaml`, `fly.toml` or `Procfile` in the repo, and both services bind
+      localhost (`backend/main-app/src/server.ts:9`, `backend/keyboard/src/server.ts:10`). Every item
+      below that says "production" assumes a deployment nothing on this list plans. It also gates the
+      Stripe webhook (tested today via `stripe listen` to localhost, `TESTING.md:25`), the Google
+      OAuth redirect URI (`.env.example:79`, still `http://localhost:4000`), and `EXPO_PUBLIC_API_URL`
+      which currently has to be a LAN IP.
+- [ ] **Supabase is on the free plan, which pauses after 7 days of no database activity.**
+      `.github/workflows/supabase-keepalive.yml` now queries it daily so development is safe, but a
+      public beta should not sit on a plan that can pause itself — decide whether to upgrade as part
+      of the billing review above.
 - [ ] **Secrets hygiene.** One repo-root `.env.local` holds everything including
       `SUPABASE_SERVICE_ROLE_KEY`; confirm the production deployment path keeps it server-side only.
 
